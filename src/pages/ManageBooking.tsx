@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { useLanguage } from '../contexts/LanguageContext';
 
@@ -45,7 +46,7 @@ const ManageBooking: React.FC = () => {
 
   const fetchBooking = async () => {
     try {
-      const response = await fetch(`http://localhost:3000/api/bookings/details/${token}`);
+      const response = await fetch(`${API_URL}/api/bookings/details/${token}`);
       if (response.ok) {
         const bookingData = await response.json();
         setBooking(bookingData);
@@ -69,7 +70,7 @@ const ManageBooking: React.FC = () => {
     
     setActionLoading('cancel');
     try {
-      const response = await fetch(`http://localhost:3000/api/bookings/manage?token=${token}&action=cancel`, {
+      const response = await fetch(`${API_URL}/api/bookings/manage?token=${token}&action=cancel`, {
         method: 'GET',
       });
       

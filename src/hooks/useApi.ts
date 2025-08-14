@@ -1,6 +1,6 @@
 import { useCallback } from 'react';
 
-const BASE_URL = 'http://localhost:3000'; // Update for production
+const BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
 
 export default function useApi(auth = false) {
   const getHeaders = () => ({
