@@ -15,7 +15,7 @@ const Footer = () => {
         <div>
           <h3 className="font-bold mb-2">{t('social')}</h3>
           <div className="flex space-x-4">
-            <a href="https://instagram.com" target="_blank" rel="noopener noreferrer"><FaInstagram size={24} /></a>
+            <a href="https://www.instagram.com/shanikadcoh/" target="_blank" rel="noopener noreferrer"><FaInstagram size={24} /></a>
             <a href="https://wa.me/+972587594973" target="_blank" rel="noopener noreferrer"><FaWhatsapp size={24} /></a>
           </div>
         </div>
