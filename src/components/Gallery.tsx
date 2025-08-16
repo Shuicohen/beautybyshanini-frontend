@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { motion, useReducedMotion, Variants } from 'framer-motion';
 import Modal from './Modal';
 import { useLanguage } from '../contexts/LanguageContext';
@@ -17,14 +17,7 @@ const Gallery = () => {
   const { t } = useLanguage();
 
   const shouldReduceMotion = useReducedMotion();
-  const [isMobile, setIsMobile] = useState(false);
-  useEffect(() => {
-    const checkMobile = () => setIsMobile(window.innerWidth <= 768);
-    checkMobile();
-    window.addEventListener('resize', checkMobile);
-    return () => window.removeEventListener('resize', checkMobile);
-  }, []);
-  const galleryVariants: Variants = (shouldReduceMotion || isMobile)
+  const galleryVariants: Variants = shouldReduceMotion
     ? { hidden: { opacity: 0 }, visible: { opacity: 1 } }
     : { hidden: { opacity: 0, y: 24 }, visible: { opacity: 1, y: 0, transition: { type: 'spring', stiffness: 60, damping: 18 } } };
 
@@ -36,8 +29,8 @@ const Gallery = () => {
           <motion.div
             key={index}
             variants={galleryVariants}
-            initial={shouldReduceMotion || isMobile ? 'hidden' : 'hidden'}
-            whileInView={shouldReduceMotion || isMobile ? 'visible' : 'visible'}
+            initial={shouldReduceMotion ? 'hidden' : 'hidden'}
+            whileInView={shouldReduceMotion ? 'visible' : 'visible'}
             viewport={{ once: true, amount: 0.2 }}
             className="mb-4 break-inside-avoid"
             style={{ willChange: 'transform, opacity' }}
