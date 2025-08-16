@@ -17,10 +17,9 @@ const Gallery = () => {
   const { t } = useLanguage();
 
   const shouldReduceMotion = useReducedMotion();
-  const galleryVariants: Variants = {
-    hidden: { opacity: 0, y: 24 },
-    visible: { opacity: 1, y: 0, transition: { type: 'spring', stiffness: 60, damping: 18 } },
-  };
+  const galleryVariants: Variants = shouldReduceMotion
+    ? { hidden: { opacity: 0 }, visible: { opacity: 1 } }
+    : { hidden: { opacity: 0, y: 24 }, visible: { opacity: 1, y: 0, transition: { type: 'spring', stiffness: 60, damping: 18 } } };
 
   return (
     <section className="py-20 px-4 bg-butter-yellow/20">
@@ -30,10 +29,11 @@ const Gallery = () => {
           <motion.div
             key={index}
             variants={galleryVariants}
-            initial={shouldReduceMotion ? undefined : 'hidden'}
-            whileInView={shouldReduceMotion ? undefined : 'visible'}
-            viewport={{ once: true }}
+            initial={shouldReduceMotion ? 'hidden' : 'hidden'}
+            whileInView={shouldReduceMotion ? 'visible' : 'visible'}
+            viewport={{ once: true, amount: 0.2 }}
             className="mb-4 break-inside-avoid"
+            style={{ willChange: 'transform, opacity' }}
           >
             <iframe
               src={`${post}embed`}
