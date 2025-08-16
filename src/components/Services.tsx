@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { motion } from 'framer-motion';
+import { motion, useReducedMotion } from 'framer-motion';
 import useApi from '../hooks/useApi';
 import { FaPaintBrush } from 'react-icons/fa';
 import { Link } from 'react-router-dom';
@@ -49,6 +49,8 @@ const Services = () => {
     });
   }, [api]);
 
+  const shouldReduceMotion = useReducedMotion();
+
   return (
     <section className="py-16 md:py-24 px-4 md:px-8 relative overflow-hidden">
       {/* Enhanced Background */}
@@ -59,27 +61,30 @@ const Services = () => {
         {/* Main Services Section */}
         <div className="text-center mb-16">
           <motion.h2
-            initial={{ opacity: 0, y: 30 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            transition={{ duration: 0.6 }}
+            initial={shouldReduceMotion ? undefined : { opacity: 0, y: 20 }}
+            whileInView={shouldReduceMotion ? undefined : { opacity: 1, y: 0 }}
+            viewport={{ once: true, amount: 0.2 }}
+            transition={shouldReduceMotion ? undefined : { duration: 0.5 }}
             className="text-4xl md:text-5xl lg:text-6xl font-extrabold mb-6 text-pink-accent tracking-tight"
+            style={{ willChange: 'transform, opacity' }}
           >
             {t('ourServices')}
           </motion.h2>
           <motion.div
-            initial={{ opacity: 0, scale: 0.8 }}
-            whileInView={{ opacity: 1, scale: 1 }}
-            viewport={{ once: true }}
-            transition={{ duration: 0.5, delay: 0.2 }}
+            initial={shouldReduceMotion ? undefined : { opacity: 0, scale: 0.95 }}
+            whileInView={shouldReduceMotion ? undefined : { opacity: 1, scale: 1 }}
+            viewport={{ once: true, amount: 0.2 }}
+            transition={shouldReduceMotion ? undefined : { duration: 0.4, delay: 0.1 }}
             className="w-24 h-1 bg-gradient-to-r from-pink-accent to-baby-blue mx-auto mb-6"
+            style={{ willChange: 'transform, opacity' }}
           ></motion.div>
           <motion.p
-            initial={{ opacity: 0, y: 20 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            transition={{ duration: 0.6, delay: 0.3 }}
+            initial={shouldReduceMotion ? undefined : { opacity: 0, y: 15 }}
+            whileInView={shouldReduceMotion ? undefined : { opacity: 1, y: 0 }}
+            viewport={{ once: true, amount: 0.2 }}
+            transition={shouldReduceMotion ? undefined : { duration: 0.5, delay: 0.15 }}
             className="text-lg md:text-xl text-text-dark/70 max-w-3xl mx-auto leading-relaxed"
+            style={{ willChange: 'transform, opacity' }}
           >
             {t('serviceDescription')}
           </motion.p>
