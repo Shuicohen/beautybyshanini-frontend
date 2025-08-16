@@ -27,7 +27,7 @@ const HoursContact = () => {
         >
           <h3 className="font-bold text-2xl mb-6 flex items-center text-text-dark"><FaMapMarkerAlt className="mr-3 text-pink-accent text-3xl" /> {t('location')}</h3>
           <p className="mb-6 text-lg">{t('address')}</p>
-          <a href="https://wa.me/1234567890" className="block bg-pink-accent text-white px-6 py-3 rounded-full text-center font-semibold hover:bg-pink-accent/90 transition">
+          <a href="https://wa.me/+972587594973" className="block bg-pink-accent text-white px-6 py-3 rounded-full text-center font-semibold hover:bg-pink-accent/90 transition">
             <FaWhatsapp className="inline mr-2" /> {t('contactWhatsApp')}
           </a>
         </motion.div>
