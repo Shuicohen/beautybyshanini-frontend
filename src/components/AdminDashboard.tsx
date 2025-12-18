@@ -521,7 +521,14 @@ const AdminDashboard = () => {
   };
 
   const onSetOpenHours = (data: OpenHoursFormData) => {
+    setError(null);
     const days = selectedDays.length > 0 ? selectedDays : [new Date()];
+    
+    if (!data.start_time || !data.end_time) {
+      setError('Please provide both start time and end time');
+      return;
+    }
+    
     Promise.all(
       days.map(day =>
         api.post('/api/availability', {
@@ -538,10 +545,18 @@ const AdminDashboard = () => {
         setSelectedDays([]); // Unselect dates after setting hours
         api.get('/api/availability/dates').then((data: { availableDates: string[] }) => {
           if (data && Array.isArray(data.availableDates)) setAvailableDays(data.availableDates);
+        }).catch(() => {
+          // Silently fail - availability was still set
         });
         setTimeout(() => setShowSuccess(null), 2000);
       })
-      .catch(err => setError(err.message));
+      .catch(err => {
+        const errorMessage = err?.message || err?.error || 'Failed to save availability. Please try again.';
+        setError(errorMessage);
+        if (import.meta.env.DEV) {
+          console.error('Error setting availability:', err);
+        }
+      });
   };
 
   const onAddOrEditService = (data: ServiceFormData) => {
@@ -752,6 +767,13 @@ const AdminDashboard = () => {
   // Handler for editing open hours for a single day
   const onEditOpenHours = (data: OpenHoursFormData) => {
     if (!editDate) return;
+    setError(null);
+    
+    if (!data.start_time || !data.end_time) {
+      setError('Please provide both start time and end time');
+      return;
+    }
+    
     api.post('/api/availability', {
       day: format(editDate, 'yyyy-MM-dd'),
       start_time: data.start_time,
@@ -768,9 +790,17 @@ const AdminDashboard = () => {
         // Refresh available days
         api.get('/api/availability/dates').then((data: { availableDates: string[] }) => {
           if (data && Array.isArray(data.availableDates)) setAvailableDays(data.availableDates);
+        }).catch(() => {
+          // Silently fail - availability was still set
         });
       })
-      .catch(err => setError(err.message));
+      .catch(err => {
+        const errorMessage = err?.message || err?.error || 'Failed to update availability. Please try again.';
+        setError(errorMessage);
+        if (import.meta.env.DEV) {
+          console.error('Error updating availability:', err);
+        }
+      });
   };
 
   // Handler for blocking time on a single day
@@ -800,7 +830,13 @@ const AdminDashboard = () => {
         reset();
         setSingleDayAction('editHours');
       })
-      .catch(err => setError(err.message));
+      .catch(err => {
+        const errorMessage = err?.message || err?.error || 'Failed to block time. Please try again.';
+        setError(errorMessage);
+        if (import.meta.env.DEV) {
+          console.error('Error blocking time:', err);
+        }
+      });
   };
 
   // Handler for unblocking a specific time slot
@@ -1002,13 +1038,37 @@ const AdminDashboard = () => {
   if (loading) return <div className="flex justify-center items-center h-screen"><div className="animate-spin rounded-full h-12 w-12 border-t-4 border-pink-accent"></div></div>;
   if (error) return <div className="flex justify-center items-center h-screen text-red-500">Error: {error}. <button onClick={() => window.location.reload()} className="ml-2 text-pink-accent underline">Retry</button></div>;
 
+  // #region agent log
+  useEffect(() => {
+    const viewportWidth = window.innerWidth;
+    const isMobile = viewportWidth < 768;
+    fetch('http://127.0.0.1:7242/ingest/e7494785-1fe6-47f3-8df4-c77793040f40',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'AdminDashboard.tsx:1005',message:'Dashboard render - viewport check',data:{viewportWidth,isMobile,isMenuOpen,activeTab},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'D'})}).catch(()=>{});
+  }, [isMenuOpen, activeTab]);
+  // #endregion
+
   return (
-    <div className="relative min-h-screen flex flex-col md:flex-row">
+    <div 
+      className="relative min-h-screen flex flex-col md:flex-row"
+      ref={(el) => {
+        // #region agent log
+        if (el) {
+          const rect = el.getBoundingClientRect();
+          const styles = window.getComputedStyle(el);
+          fetch('http://127.0.0.1:7242/ingest/e7494785-1fe6-47f3-8df4-c77793040f40',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'AdminDashboard.tsx:1006',message:'Container element dimensions',data:{width:rect.width,height:rect.height,top:rect.top,left:rect.left,display:styles.display,flexDirection:styles.flexDirection,viewportWidth:window.innerWidth},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'E'})}).catch(()=>{});
+        }
+        // #endregion
+      }}
+    >
       <AnimatedBackground />
       {/* Mobile menu button */}
       <button 
         className="md:hidden p-2.5 bg-white/95 backdrop-blur-md text-pink-accent fixed top-2 left-2 z-50 rounded-full shadow-lg border border-white/20"
-        onClick={() => setIsMenuOpen(!isMenuOpen)}
+        onClick={() => {
+          // #region agent log
+          fetch('http://127.0.0.1:7242/ingest/e7494785-1fe6-47f3-8df4-c77793040f40',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'AdminDashboard.tsx:1011',message:'Menu button clicked',data:{currentState:isMenuOpen,newState:!isMenuOpen},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
+          // #endregion
+          setIsMenuOpen(!isMenuOpen);
+        }}
         aria-label="Open menu"
       >
         {isMenuOpen ? <FiX size={18} /> : <FiMenu size={18} />}
@@ -1029,6 +1089,15 @@ const AdminDashboard = () => {
           ${isMenuOpen ? 'translate-x-0' : '-translate-x-full'}
           md:translate-x-0 border-r border-white/20 overflow-y-auto
         `}
+        ref={(el) => {
+          // #region agent log
+          if (el) {
+            const rect = el.getBoundingClientRect();
+            const styles = window.getComputedStyle(el);
+            fetch('http://127.0.0.1:7242/ingest/e7494785-1fe6-47f3-8df4-c77793040f40',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'AdminDashboard.tsx:1024',message:'Sidebar element dimensions',data:{width:rect.width,height:rect.height,top:rect.top,left:rect.left,zIndex:styles.zIndex,transform:styles.transform,display:styles.display,position:styles.position,isMenuOpen},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
+          }
+          // #endregion
+        }}
       >
         <h2 className="text-base sm:text-lg md:text-2xl font-bold text-pink-accent mb-4 sm:mb-6 md:mb-8 pt-12 md:pt-0">Admin Dashboard</h2>
         <ul className="space-y-1.5 sm:space-y-2 md:space-y-4 flex-grow">
@@ -1057,16 +1126,47 @@ const AdminDashboard = () => {
         </button>
       </nav>
       {/* Main content area */}
-      <main className="relative z-10 flex-1 p-2 sm:p-3 md:p-4 lg:p-6 xl:p-8 overflow-x-hidden overflow-y-auto w-full min-h-screen md:min-h-screen pt-12 md:pt-0">
+      <main 
+        className="relative z-10 flex-1 p-2 sm:p-3 md:p-4 lg:p-6 xl:p-8 overflow-x-hidden overflow-y-auto w-full min-h-screen md:min-h-screen pt-12 md:pt-0"
+        ref={(el) => {
+          // #region agent log
+          if (el) {
+            const rect = el.getBoundingClientRect();
+            const styles = window.getComputedStyle(el);
+            fetch('http://127.0.0.1:7242/ingest/e7494785-1fe6-47f3-8df4-c77793040f40',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'AdminDashboard.tsx:1060',message:'Main content element dimensions',data:{width:rect.width,height:rect.height,top:rect.top,left:rect.left,zIndex:styles.zIndex,display:styles.display,position:styles.position,isMenuOpen},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
+          }
+          // #endregion
+        }}
+      >
         <motion.div 
           key={activeTab}
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5 }}
           className="max-w-full sm:max-w-7xl mx-auto space-y-3 sm:space-y-4 md:space-y-6 lg:space-y-8"
+          ref={(el) => {
+            // #region agent log
+            if (el) {
+              const rect = el.getBoundingClientRect();
+              const parentRect = el.parentElement?.getBoundingClientRect();
+              fetch('http://127.0.0.1:7242/ingest/e7494785-1fe6-47f3-8df4-c77793040f40',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'AdminDashboard.tsx:1067',message:'Content wrapper dimensions',data:{width:rect.width,height:rect.height,top:rect.top,left:rect.left,parentWidth:parentRect?.width,parentHeight:parentRect?.height,activeTab,isMenuOpen},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
+            }
+            // #endregion
+          }}
         >
           {activeTab === 'Overview' && (
-            <div className="space-y-6 sm:space-y-8">
+            <div 
+              className="space-y-6 sm:space-y-8"
+              ref={(el) => {
+                // #region agent log
+                if (el) {
+                  const rect = el.getBoundingClientRect();
+                  const hasChildren = el.children.length > 0;
+                  fetch('http://127.0.0.1:7242/ingest/e7494785-1fe6-47f3-8df4-c77793040f40',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'AdminDashboard.tsx:1069',message:'Overview tab content rendered',data:{width:rect.width,height:rect.height,top:rect.top,left:rect.left,hasChildren,childCount:el.children.length,isVisible:rect.width>0&&rect.height>0},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'})}).catch(()=>{});
+                }
+                // #endregion
+              }}
+            >
               {/* Header */}
               <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 sm:gap-4">
                 <div>
@@ -3485,6 +3585,17 @@ const AdminDashboard = () => {
                 </svg>
               </button>
             </div>
+            
+            {error && (
+              <div className="mb-4 p-4 bg-red-100 border border-red-400 text-red-700 rounded-xl text-sm">
+                {error}
+              </div>
+            )}
+            {showSuccess && (
+              <div className="mb-4 p-4 bg-green-100 border border-green-400 text-green-700 rounded-xl text-sm">
+                {showSuccess}
+              </div>
+            )}
 
             {/* Date Details Section - Always Shown */}
             {loadingDateDetails ? (
@@ -3902,6 +4013,16 @@ const AdminDashboard = () => {
               </p>
             </div>
 
+            {error && (
+              <div className="mb-4 p-4 bg-red-100 border border-red-400 text-red-700 rounded-xl text-sm">
+                {error}
+              </div>
+            )}
+            {showSuccess && (
+              <div className="mb-4 p-4 bg-green-100 border border-green-400 text-green-700 rounded-xl text-sm">
+                {showSuccess}
+              </div>
+            )}
             <form onSubmit={handleSubmit(onSetOpenHours)} className="space-y-6">
               <div className="bg-white rounded-2xl p-4 sm:p-6 border border-gray-200">
                 <div className="bg-gray-50/50 rounded-xl p-4 space-y-4">
