@@ -236,6 +236,7 @@ const AdminDashboard = () => {
   // Redirect to login if no token
   useEffect(() => {
     if (!token) {
+      setLoading(false);
       navigate('/admin/login');
     }
   }, [token, navigate]);
@@ -416,13 +417,13 @@ const AdminDashboard = () => {
       setLoading(true);
       setError(null);
       Promise.all([
-        api.get('/api/bookings').then(data => data).catch(err => { if (import.meta.env.DEV) console.error('Bookings error:', err); setError(err.message); }),
-        api.get('/api/services').then(data => data).catch(err => { if (import.meta.env.DEV) console.error('Services error:', err); setError(err.message); }),
+        api.get('/api/bookings').then(data => data).catch(err => { if (import.meta.env.DEV) console.error('Bookings error:', err); return []; }),
+        api.get('/api/services').then(data => data).catch(err => { if (import.meta.env.DEV) console.error('Services error:', err); return []; }),
         api.get(`/api/analytics?range=${analyticsTimeRange}`).then(data => data).catch(err => {
           if (import.meta.env.DEV) console.error('Analytics fetch failed:', err);
           return { mostBooked: '', revenueEstimate: 0, vipClients: [] }; // Default fallback
         }),
-        api.get('/api/availability/dates').then(data => data).catch(err => { if (import.meta.env.DEV) console.error('Availability error:', err); setError(err.message); }),
+        api.get('/api/availability/dates').then(data => data).catch(err => { if (import.meta.env.DEV) console.error('Availability error:', err); return { availableDates: [] }; }),
       ])
         .then(([bookingsData, servicesData, analyticsData, availabilityData]) => {
           setBookings(bookingsData || []);

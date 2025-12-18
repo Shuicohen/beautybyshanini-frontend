@@ -212,60 +212,61 @@ const Booking = () => {
       });
     });
   }, [api, language, searchParams]);
+  // Fetch available dates when service is selected or calendar month changes
   useEffect(() => {
     if (selectedService) {
-      // If cached, use instantly
-      if (datesCache[selectedService.id]) {
-        setAvailableDates(datesCache[selectedService.id]);
-        setLoadingDates(false);
-      } else {
-        setLoadingDates(true);
-        api.get(`/api/availability/dates?serviceId=${selectedService.id}`)
-          .then((data) => {
-            const dates = (data.availableDates || []).map((d: string) => {
-              // Parse date string (YYYY-MM-DD) as local date to avoid timezone issues
-              const [year, month, day] = d.split('-').map(Number);
-              return new Date(year, month - 1, day);
-            });
-            setAvailableDates(dates);
-            setDatesCache(prev => ({ ...prev, [selectedService.id]: dates }));
-          })
-          .catch((err: any) => {
-            if (import.meta.env.DEV) console.error('Error fetching available dates:', err);
-            // If service not found, reload services list and clear selection
-            if (err?.message?.includes('Service not found') || err?.error === 'Service not found') {
-              if (import.meta.env.DEV) console.log('Service not found, reloading services...');
-              api.get(`/api/services/main?language=${language}`).then((mainServicesData: Service[]) => {
-                setServices(mainServicesData);
-                // Clear selection if current service doesn't exist anymore
-                const serviceExists = mainServicesData.some(s => s.id === selectedService.id);
+      // Always fetch fresh data to ensure availability updates are reflected
+      setLoadingDates(true);
+      api.get(`/api/availability/dates?serviceId=${selectedService.id}`)
+        .then((data) => {
+          const dates = (data.availableDates || []).map((d: string) => {
+            // Parse date string (YYYY-MM-DD) as local date to avoid timezone issues
+            const [year, month, day] = d.split('-').map(Number);
+            return new Date(year, month - 1, day);
+          });
+          setAvailableDates(dates);
+          // Update cache with fresh data
+          setDatesCache(prev => ({ ...prev, [selectedService.id]: dates }));
+        })
+        .catch((err: any) => {
+          if (import.meta.env.DEV) console.error('Error fetching available dates:', err);
+          // If cached data exists, use it as fallback
+          if (datesCache[selectedService.id]) {
+            setAvailableDates(datesCache[selectedService.id]);
+          }
+          // If service not found, reload services list and clear selection
+          if (err?.message?.includes('Service not found') || err?.error === 'Service not found') {
+            if (import.meta.env.DEV) console.log('Service not found, reloading services...');
+            api.get(`/api/services/main?language=${language}`).then((mainServicesData: Service[]) => {
+              setServices(mainServicesData);
+              // Clear selection if current service doesn't exist anymore
+              const serviceExists = mainServicesData.some(s => s.id === selectedService.id);
+              if (!serviceExists) {
+                setSelectedService(null);
+                setStep(1);
+              }
+            }).catch(() => {
+              // Fallback to full services list
+              api.get(`/api/services?language=${language}`).then((allServices: Service[]) => {
+                const mainServices = allServices.filter(s => !s.is_addon);
+                setServices(mainServices);
+                const serviceExists = mainServices.some(s => s.id === selectedService.id);
                 if (!serviceExists) {
                   setSelectedService(null);
                   setStep(1);
                 }
-              }).catch(() => {
-                // Fallback to full services list
-                api.get(`/api/services?language=${language}`).then((allServices: Service[]) => {
-                  const mainServices = allServices.filter(s => !s.is_addon);
-                  setServices(mainServices);
-                  const serviceExists = mainServices.some(s => s.id === selectedService.id);
-                  if (!serviceExists) {
-                    setSelectedService(null);
-                    setStep(1);
-                  }
-                });
               });
-            }
-          })
-          .finally(() => {
-            setLoadingDates(false);
-          });
-      }
+            });
+          }
+        })
+        .finally(() => {
+          setLoadingDates(false);
+        });
     } else {
       setAvailableDates([]);
       setLoadingDates(false);
     }
-  }, [selectedService, language, datesCache]);
+  }, [selectedService, language, calendarDate]);
   useEffect(() => {
     if (selectedDate && selectedService) {
       const day = format(selectedDate, 'yyyy-MM-dd');
