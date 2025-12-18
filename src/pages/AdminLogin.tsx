@@ -23,18 +23,44 @@ const AdminLogin = () => {
     setLoading(true);
     try {
       const res = await api.post('/api/auth/login', data);
-      if (res.token) {
+      if (res && res.token) {
         localStorage.setItem('token', res.token);
         navigate('/admin/dashboard');
       } else {
-        setError('Invalid response from server');
+        setError('Invalid response from server. Please try again.');
       }
     } catch (err: any) {
-      const errorMessage = err?.message || 'Failed to connect to server. Please check your internet connection and try again.';
-      setError(errorMessage);
-      if (import.meta.env.DEV) {
-        console.error('Login error:', err);
+      // Extract more detailed error message
+      let errorMessage = 'Failed to login. ';
+      
+      if (err?.message) {
+        errorMessage += err.message;
+      } else if (err?.error) {
+        errorMessage += err.error;
+      } else if (typeof err === 'string') {
+        errorMessage += err;
+      } else {
+        errorMessage += 'Please check your credentials and try again.';
       }
+      
+      // Check for specific error types
+      if (err?.message?.includes('API URL is not configured')) {
+        errorMessage = 'API URL is not configured. Please contact the administrator.';
+      } else if (err?.message?.includes('Failed to fetch') || err?.message?.includes('NetworkError')) {
+        errorMessage = 'Cannot connect to server. Please check your internet connection and ensure the backend is running.';
+      } else if (err?.message?.includes('CORS')) {
+        errorMessage = 'CORS error: Server configuration issue. Please contact the administrator.';
+      }
+      
+      setError(errorMessage);
+      
+      // Always log errors for debugging
+      console.error('Login error:', {
+        error: err,
+        message: err?.message,
+        stack: err?.stack,
+        data: data
+      });
     } finally {
       setLoading(false);
     }
@@ -50,6 +76,11 @@ const AdminLogin = () => {
         className="relative z-10 bg-white/90 backdrop-blur-md p-10 rounded-3xl shadow-2xl max-w-md w-full border border-white/20"
       >
         <h1 className="text-3xl font-bold text-center mb-8 text-pink-accent drop-shadow-sm">Admin Login</h1>
+        {import.meta.env.DEV && (
+          <div className="mb-4 p-2 bg-blue-50 border border-blue-200 text-blue-700 rounded-lg text-xs">
+            API URL: {import.meta.env.VITE_API_URL || 'http://localhost:3000'}
+          </div>
+        )}
         {error && (
           <div className="mb-4 p-4 bg-red-100 border border-red-400 text-red-700 rounded-xl text-sm">
             {error}

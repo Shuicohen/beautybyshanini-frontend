@@ -23,6 +23,11 @@ export default function useApi(auth = false) {
     
     const fullUrl = `${BASE_URL}${url}`;
     
+    // Log the request in development
+    if (import.meta.env.DEV) {
+      console.log(`API Request: ${options.method || 'GET'} ${fullUrl}`);
+    }
+    
     for (let i = 0; i < retries; i++) {
       try {
         const controller = new AbortController();
@@ -33,47 +38,69 @@ export default function useApi(auth = false) {
         const response = await fetch(fullUrl, { ...options, signal: controller.signal });
         clearTimeout(timeoutId);
         const text = await response.text();
+        
         if (!response.ok) {
           let errorMsg = 'API error';
           try {
             const errJson = JSON.parse(text);
             errorMsg = errJson.error || errorMsg;
-          } catch {}
-          if (import.meta.env.DEV) {
-            console.error(`API error for ${url}:`, errorMsg, text);
+          } catch {
+            // If JSON parsing fails, use the text or status text
+            errorMsg = text || response.statusText || `HTTP ${response.status}`;
           }
+          
+          // Log errors for debugging
+          console.error(`API error for ${fullUrl}:`, {
+            status: response.status,
+            statusText: response.statusText,
+            error: errorMsg,
+            responseText: text
+          });
+          
           if (response.status === 401) {
-            // Redirect to login if unauthorized
-            window.location.href = '/admin/login';
-            throw new Error('Unauthorized: Redirecting to login');
+            // Don't redirect if we're already on the login page
+            if (!window.location.pathname.includes('/admin/login')) {
+              window.location.href = '/admin/login';
+            }
+            throw new Error(errorMsg || 'Invalid credentials');
           }
           if (response.status === 429) {
             if (import.meta.env.DEV) {
-              console.warn(`Rate limit hit for ${url}, delaying retry`);
+              console.warn(`Rate limit hit for ${fullUrl}, delaying retry`);
             }
             await new Promise(resolve => setTimeout(resolve, 10000));
           }
           throw new Error(errorMsg);
         }
         return text ? JSON.parse(text) : {};
-      } catch (error) {
-        // Only abort if the error is not an AbortError or if it's the last retry
-        if (
-          typeof error === 'object' &&
-          error !== null &&
-          'name' in error &&
-          (error as { name?: string }).name === 'AbortError' &&
-          i < retries - 1
-        ) {
+      } catch (error: any) {
+        // Handle network errors
+        if (error?.name === 'AbortError') {
+          if (i === retries - 1) {
+            throw new Error('Request timeout. Please try again.');
+          }
           if (import.meta.env.DEV) {
-            console.warn(`Timeout reached for ${url}, retrying...`);
+            console.warn(`Timeout reached for ${fullUrl}, retrying...`);
+          }
+        } else if (error?.message?.includes('Failed to fetch') || error?.message?.includes('NetworkError')) {
+          if (i === retries - 1) {
+            throw new Error('Cannot connect to server. Please check your internet connection and ensure the backend is running.');
+          }
+          if (import.meta.env.DEV) {
+            console.warn(`Network error for ${fullUrl}, retrying...`);
           }
         } else if (i === retries - 1) {
+          // Last retry, throw the error
           throw error;
         }
+        
+        // Wait before retrying
         await new Promise(resolve => setTimeout(resolve, delay * (i + 1)));
       }
     }
+    
+    // This should never be reached, but TypeScript needs it
+    throw new Error('Unexpected error in fetchWithRetry');
   };
 
   const get = useCallback(async (endpoint: string) => {
