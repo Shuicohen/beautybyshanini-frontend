@@ -1003,15 +1003,15 @@ const AdminDashboard = () => {
   if (error) return <div className="flex justify-center items-center h-screen text-red-500">Error: {error}. <button onClick={() => window.location.reload()} className="ml-2 text-pink-accent underline">Retry</button></div>;
 
   return (
-    <div className="relative min-h-screen flex flex-col md:flex-row overflow-hidden">
+    <div className="relative min-h-screen h-screen flex flex-col md:flex-row overflow-hidden">
       <AnimatedBackground />
       {/* Mobile menu button */}
       <button 
-        className="md:hidden p-3 bg-white/90 backdrop-blur-md text-pink-accent fixed top-3 left-3 z-50 rounded-full shadow-lg border border-white/20"
+        className="md:hidden p-2.5 bg-white/95 backdrop-blur-md text-pink-accent fixed top-2 left-2 z-50 rounded-full shadow-lg border border-white/20"
         onClick={() => setIsMenuOpen(!isMenuOpen)}
         aria-label="Open menu"
       >
-        {isMenuOpen ? <FiX size={20} /> : <FiMenu size={20} />}
+        {isMenuOpen ? <FiX size={18} /> : <FiMenu size={18} />}
       </button>
       {/* Mobile overlay */}
       {isMenuOpen && (
@@ -1023,15 +1023,15 @@ const AdminDashboard = () => {
       {/* Sidebar navigation */}
       <nav
         className={`
-          relative z-40 bg-white/95 backdrop-blur-md p-4 sm:p-6 shadow-soft flex flex-col
-          w-80 max-w-[85vw] h-screen fixed top-0 left-0 transition-transform duration-300 ease-in-out
+          relative z-40 bg-white/95 backdrop-blur-md p-3 sm:p-4 md:p-6 shadow-soft flex flex-col
+          w-72 max-w-[80vw] h-full fixed top-0 left-0 transition-transform duration-300 ease-in-out
           md:static md:w-1/5 md:h-auto md:block md:translate-x-0
           ${isMenuOpen ? 'translate-x-0' : '-translate-x-full'}
           md:translate-x-0 border-r border-white/20 overflow-y-auto
         `}
       >
-        <h2 className="text-lg sm:text-2xl font-bold text-pink-accent mb-6 sm:mb-8">Admin Dashboard</h2>
-        <ul className="space-y-2 sm:space-y-4 flex-grow">
+        <h2 className="text-base sm:text-lg md:text-2xl font-bold text-pink-accent mb-4 sm:mb-6 md:mb-8 pt-12 md:pt-0">Admin Dashboard</h2>
+        <ul className="space-y-1.5 sm:space-y-2 md:space-y-4 flex-grow">
           {tabs.map((tab) => (
             <li key={tab.name}>
               <button 
@@ -1039,31 +1039,31 @@ const AdminDashboard = () => {
                   setActiveTab(tab.name);
                   setIsMenuOpen(false);
                 }} 
-                className={`w-full flex items-center py-2 sm:py-3 px-3 sm:px-4 rounded-lg transition ${
+                className={`w-full flex items-center py-2 sm:py-2.5 md:py-3 px-2 sm:px-3 md:px-4 rounded-lg transition ${
                   activeTab === tab.name ? 'bg-pink-accent text-white' : 'hover:bg-pink-accent/10'
                 }`}
               >
-                <tab.icon className="mr-2 sm:mr-3 text-lg sm:text-xl flex-shrink-0" size={20} />
-                <span className="text-sm sm:text-base">{tab.name}</span>
+                <tab.icon className="mr-2 sm:mr-2.5 md:mr-3 text-base sm:text-lg md:text-xl flex-shrink-0" size={18} />
+                <span className="text-xs sm:text-sm md:text-base">{tab.name}</span>
               </button>
             </li>
           ))}
         </ul>
         <button 
           onClick={handleLogout}
-          className="w-full mt-6 sm:mt-8 bg-pink-accent/80 text-white px-4 sm:px-6 py-2 sm:py-3 rounded-full shadow-soft hover:bg-pink-accent transition text-sm sm:text-base"
+          className="w-full mt-4 sm:mt-6 md:mt-8 bg-pink-accent/80 text-white px-3 sm:px-4 md:px-6 py-2 sm:py-2.5 md:py-3 rounded-full shadow-soft hover:bg-pink-accent transition text-xs sm:text-sm md:text-base"
         >
           Logout
         </button>
       </nav>
       {/* Main content area */}
-      <main className="relative z-10 flex-1 p-3 sm:p-4 md:p-6 lg:p-8 overflow-x-hidden overflow-y-auto w-full min-h-screen pb-20 md:pb-8">
+      <main className="relative z-10 flex-1 p-2 sm:p-3 md:p-4 lg:p-6 xl:p-8 overflow-x-hidden overflow-y-auto w-full h-full">
         <motion.div 
           key={activeTab}
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5 }}
-          className="max-w-full sm:max-w-7xl mx-auto space-y-4 sm:space-y-6 md:space-y-8"
+          className="max-w-full sm:max-w-7xl mx-auto space-y-3 sm:space-y-4 md:space-y-6 lg:space-y-8"
         >
           {activeTab === 'Overview' && (
             <div className="space-y-6 sm:space-y-8">
