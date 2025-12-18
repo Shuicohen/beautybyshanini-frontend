@@ -17,6 +17,9 @@ import { OverviewTab, ManageServicesTab, AvailabilityTab, BookingsTab, ClientsTa
 import { groupBookingsByDate, groupBookingsByWeek, groupBookingsByMonth, getDateRangeForFilter } from './admin/tabs/bookingHelpers';
 
 const AdminDashboard = () => {
+  // #region agent log
+  fetch('http://127.0.0.1:7242/ingest/e7494785-1fe6-47f3-8df4-c77793040f40',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'AdminDashboard.tsx:19',message:'AdminDashboard render start',data:{timestamp:Date.now()},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A,B,C'})}).catch(()=>{});
+  // #endregion
   const navigate = useNavigate();
   const { register, handleSubmit, reset } = useForm<ServiceFormData & BlockTimeFormData & OpenHoursFormData & BookingFormData>();
   const [token, setToken] = useState<string | null>(localStorage.getItem('token'));
@@ -80,6 +83,9 @@ const AdminDashboard = () => {
   const [editingGoals, setEditingGoals] = useState(false);
   
   // Use the extracted hook for data management
+  // #region agent log
+  fetch('http://127.0.0.1:7242/ingest/e7494785-1fe6-47f3-8df4-c77793040f40',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'AdminDashboard.tsx:83',message:'Before useAdminData hook call',data:{activeTab,analyticsTimeRange,isLoggedIn,hasToken:!!token},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'})}).catch(()=>{});
+  // #endregion
   const {
     bookings,
     setBookings,
@@ -101,6 +107,9 @@ const AdminDashboard = () => {
     loadingClients,
     api
   } = useAdminData({ isLoggedIn, token, activeTab, analyticsTimeRange });
+  // #region agent log
+  fetch('http://127.0.0.1:7242/ingest/e7494785-1fe6-47f3-8df4-c77793040f40',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'AdminDashboard.tsx:103',message:'After useAdminData hook call',data:{hasAnalytics:!!analytics,hasBookings:!!bookings},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'})}).catch(()=>{});
+  // #endregion
 
   // State for selected month and year for goals
   const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth());
@@ -112,6 +121,9 @@ const AdminDashboard = () => {
 
   // Redirect to login if no token
   useEffect(() => {
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/e7494785-1fe6-47f3-8df4-c77793040f40',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'AdminDashboard.tsx:114',message:'useEffect token check',data:{hasToken:!!token},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
+    // #endregion
     if (!token) {
       navigate('/admin/login');
     }
@@ -119,6 +131,9 @@ const AdminDashboard = () => {
 
   // Sync goalInputs with analytics when analytics changes
   useEffect(() => {
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/e7494785-1fe6-47f3-8df4-c77793040f40',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'AdminDashboard.tsx:121',message:'useEffect sync goalInputs',data:{monthlyGoal:analytics.monthlyGoal,monthlyBookingGoal:analytics.monthlyBookingGoal},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A,D'})}).catch(()=>{});
+    // #endregion
     if (analytics.monthlyGoal !== undefined && analytics.monthlyBookingGoal !== undefined) {
       setGoalInputs({
         monthlyGoal: analytics.monthlyGoal || 0,
@@ -757,13 +772,18 @@ const AdminDashboard = () => {
             />
           )}
           {activeTab === 'Analytics' && (
-            <AnalyticsTab
-              analytics={analytics}
-              bookings={bookings}
-              analyticsTimeRange={analyticsTimeRange}
-              onTimeRangeChange={setAnalyticsTimeRange}
-              onSaveGoals={handleSaveGoals}
-            />
+            <>
+              {/* #region agent log */}
+              {(() => { fetch('http://127.0.0.1:7242/ingest/e7494785-1fe6-47f3-8df4-c77793040f40',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'AdminDashboard.tsx:774',message:'Rendering AnalyticsTab',data:{activeTab,hasAnalytics:!!analytics},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B,E'})}).catch(()=>{}); return null; })()}
+              {/* #endregion */}
+              <AnalyticsTab
+                analytics={analytics}
+                bookings={bookings}
+                analyticsTimeRange={analyticsTimeRange}
+                onTimeRangeChange={setAnalyticsTimeRange}
+                onSaveGoals={handleSaveGoals}
+              />
+            </>
           )}
           {/* Keep the old code below for reference - will be removed after full extraction */}
           {false && activeTab === 'Overview' && (

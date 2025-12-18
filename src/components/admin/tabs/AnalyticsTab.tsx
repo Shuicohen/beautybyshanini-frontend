@@ -18,17 +18,38 @@ export const AnalyticsTab = ({
   onTimeRangeChange,
   onSaveGoals
 }: AnalyticsTabProps) => {
+  // #region agent log
+  fetch('http://127.0.0.1:7242/ingest/e7494785-1fe6-47f3-8df4-c77793040f40',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'AnalyticsTab.tsx:20',message:'AnalyticsTab render start',data:{hasAnalytics:!!analytics},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B,E'})}).catch(()=>{});
+  // #endregion
   const [revenueChartType, setRevenueChartType] = useState<'daily' | 'weekly'>('weekly');
+  // #region agent log
+  fetch('http://127.0.0.1:7242/ingest/e7494785-1fe6-47f3-8df4-c77793040f40',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'AnalyticsTab.tsx:21',message:'useState hook 1',data:{hook:'revenueChartType'},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
+  // #endregion
   const [editingGoals, setEditingGoals] = useState(false);
+  // #region agent log
+  fetch('http://127.0.0.1:7242/ingest/e7494785-1fe6-47f3-8df4-c77793040f40',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'AnalyticsTab.tsx:22',message:'useState hook 2',data:{hook:'editingGoals'},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
+  // #endregion
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
+  // #region agent log
+  fetch('http://127.0.0.1:7242/ingest/e7494785-1fe6-47f3-8df4-c77793040f40',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'AnalyticsTab.tsx:23',message:'useState hook 3',data:{hook:'selectedYear'},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
+  // #endregion
   const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth());
+  // #region agent log
+  fetch('http://127.0.0.1:7242/ingest/e7494785-1fe6-47f3-8df4-c77793040f40',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'AnalyticsTab.tsx:24',message:'useState hook 4',data:{hook:'selectedMonth'},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
+  // #endregion
   const [goalInputs, setGoalInputs] = useState({
     monthlyGoal: 0,
     monthlyBookingGoal: 0
   });
+  // #region agent log
+  fetch('http://127.0.0.1:7242/ingest/e7494785-1fe6-47f3-8df4-c77793040f40',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'AnalyticsTab.tsx:25',message:'useState hook 5',data:{hook:'goalInputs'},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
+  // #endregion
 
   // Sync goalInputs with analytics when analytics changes
   useEffect(() => {
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/e7494785-1fe6-47f3-8df4-c77793040f40',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'AnalyticsTab.tsx:31',message:'useEffect hook sync goalInputs',data:{monthlyGoal:analytics.monthlyGoal,monthlyBookingGoal:analytics.monthlyBookingGoal},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A,D'})}).catch(()=>{});
+    // #endregion
     if (analytics.monthlyGoal !== undefined && analytics.monthlyBookingGoal !== undefined) {
       setGoalInputs({
         monthlyGoal: analytics.monthlyGoal || 0,

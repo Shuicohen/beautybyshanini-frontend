@@ -10,11 +10,29 @@ interface UseAdminDataProps {
 }
 
 export const useAdminData = ({ isLoggedIn, token, activeTab, analyticsTimeRange }: UseAdminDataProps) => {
+  // #region agent log
+  fetch('http://127.0.0.1:7242/ingest/e7494785-1fe6-47f3-8df4-c77793040f40',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'useAdminData.ts:12',message:'useAdminData hook start',data:{activeTab,analyticsTimeRange,isLoggedIn,hasToken:!!token},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'})}).catch(()=>{});
+  // #endregion
   const api = useApi(true);
+  // #region agent log
+  fetch('http://127.0.0.1:7242/ingest/e7494785-1fe6-47f3-8df4-c77793040f40',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'useAdminData.ts:13',message:'useState hook 1',data:{hook:'api'},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
+  // #endregion
   const [bookings, setBookings] = useState<Booking[]>([]);
+  // #region agent log
+  fetch('http://127.0.0.1:7242/ingest/e7494785-1fe6-47f3-8df4-c77793040f40',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'useAdminData.ts:14',message:'useState hook 2',data:{hook:'bookings'},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
+  // #endregion
   const [services, setServices] = useState<Service[]>([]);
+  // #region agent log
+  fetch('http://127.0.0.1:7242/ingest/e7494785-1fe6-47f3-8df4-c77793040f40',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'useAdminData.ts:15',message:'useState hook 3',data:{hook:'services'},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
+  // #endregion
   const [mainServices, setMainServices] = useState<Service[]>([]);
+  // #region agent log
+  fetch('http://127.0.0.1:7242/ingest/e7494785-1fe6-47f3-8df4-c77793040f40',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'useAdminData.ts:16',message:'useState hook 4',data:{hook:'mainServices'},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
+  // #endregion
   const [addOns, setAddOns] = useState<Service[]>([]);
+  // #region agent log
+  fetch('http://127.0.0.1:7242/ingest/e7494785-1fe6-47f3-8df4-c77793040f40',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'useAdminData.ts:17',message:'useState hook 5',data:{hook:'addOns'},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
+  // #endregion
   const [analytics, setAnalytics] = useState<Analytics>({ 
     mostBooked: '', 
     revenueEstimate: 0, 
@@ -48,10 +66,25 @@ export const useAdminData = ({ isLoggedIn, token, activeTab, analyticsTimeRange 
     totalReviews: 0
   });
   const [availableDays, setAvailableDays] = useState<string[]>([]);
+  // #region agent log
+  fetch('http://127.0.0.1:7242/ingest/e7494785-1fe6-47f3-8df4-c77793040f40',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'useAdminData.ts:68',message:'useState hook 6',data:{hook:'availableDays'},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
+  // #endregion
   const [clients, setClients] = useState<ClientSummary[]>([]);
+  // #region agent log
+  fetch('http://127.0.0.1:7242/ingest/e7494785-1fe6-47f3-8df4-c77793040f40',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'useAdminData.ts:69',message:'useState hook 7',data:{hook:'clients'},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
+  // #endregion
   const [loading, setLoading] = useState<boolean>(true);
+  // #region agent log
+  fetch('http://127.0.0.1:7242/ingest/e7494785-1fe6-47f3-8df4-c77793040f40',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'useAdminData.ts:70',message:'useState hook 8',data:{hook:'loading'},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
+  // #endregion
   const [error, setError] = useState<string | null>(null);
+  // #region agent log
+  fetch('http://127.0.0.1:7242/ingest/e7494785-1fe6-47f3-8df4-c77793040f40',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'useAdminData.ts:71',message:'useState hook 9',data:{hook:'error'},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
+  // #endregion
   const [loadingClients, setLoadingClients] = useState<boolean>(false);
+  // #region agent log
+  fetch('http://127.0.0.1:7242/ingest/e7494785-1fe6-47f3-8df4-c77793040f40',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'useAdminData.ts:72',message:'useState hook 10',data:{hook:'loadingClients'},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
+  // #endregion
 
   const toNum = (v: any, fallback = 0) => {
     const n = typeof v === 'number' ? v : parseFloat(v);
@@ -69,6 +102,9 @@ export const useAdminData = ({ isLoggedIn, token, activeTab, analyticsTimeRange 
 
   // Initial data fetch
   useEffect(() => {
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/e7494785-1fe6-47f3-8df4-c77793040f40',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'useAdminData.ts:71',message:'useEffect initial data fetch',data:{isLoggedIn,hasToken:!!token,analyticsTimeRange},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A,C,D'})}).catch(()=>{});
+    // #endregion
     if (isLoggedIn && token) {
       setLoading(true);
       setError(null);
@@ -151,6 +187,9 @@ export const useAdminData = ({ isLoggedIn, token, activeTab, analyticsTimeRange 
 
   // Fetch clients when Clients tab is active
   useEffect(() => {
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/e7494785-1fe6-47f3-8df4-c77793040f40',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'useAdminData.ts:154',message:'useEffect fetch clients',data:{activeTab,isLoggedIn,hasToken:!!token},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A,C'})}).catch(()=>{});
+    // #endregion
     if (isLoggedIn && token && activeTab === 'Clients') {
       setLoadingClients(true);
       api.get('/api/clients')
@@ -168,6 +207,9 @@ export const useAdminData = ({ isLoggedIn, token, activeTab, analyticsTimeRange 
 
   // Fetch analytics when time range changes
   useEffect(() => {
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/e7494785-1fe6-47f3-8df4-c77793040f40',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'useAdminData.ts:171',message:'useEffect fetch analytics',data:{activeTab,analyticsTimeRange,isLoggedIn,hasToken:!!token},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A,C,D'})}).catch(()=>{});
+    // #endregion
     if (isLoggedIn && token && activeTab === 'Analytics') {
       api.get(`/api/analytics?range=${analyticsTimeRange}`)
         .then((analyticsData: any) => {
@@ -219,6 +261,9 @@ export const useAdminData = ({ isLoggedIn, token, activeTab, analyticsTimeRange 
     }
   }, [analyticsTimeRange, activeTab, isLoggedIn, token, api]);
 
+  // #region agent log
+  fetch('http://127.0.0.1:7242/ingest/e7494785-1fe6-47f3-8df4-c77793040f40',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'useAdminData.ts:249',message:'useAdminData hook return',data:{hasAnalytics:!!analytics,hasBookings:!!bookings},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'})}).catch(()=>{});
+  // #endregion
   return {
     bookings,
     setBookings,
