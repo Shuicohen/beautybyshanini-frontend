@@ -1,7 +1,9 @@
 import React, { useState, useEffect } from 'react';
-const API_URL = import.meta.env.VITE_API_URL;
+// Use environment variable for API URL, fallback to localhost only in development
+const API_URL = import.meta.env.VITE_API_URL || (import.meta.env.DEV ? 'http://localhost:3000' : '');
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { useLanguage } from '../contexts/LanguageContext';
+import AnimatedBackground from '../components/AnimatedBackground';
 
 interface Booking {
   id: string;
@@ -96,10 +98,11 @@ const ManageBooking: React.FC = () => {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-pink-50 to-purple-50 flex items-center justify-center" dir={isRTL ? 'rtl' : 'ltr'}>
-        <div className="text-center">
+      <div className="relative min-h-screen flex items-center justify-center" dir={isRTL ? 'rtl' : 'ltr'}>
+        <AnimatedBackground />
+        <div className="relative z-10 text-center backdrop-blur-md bg-white/80 rounded-2xl p-8 shadow-lg border border-white/20">
           <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-pink-500 mx-auto mb-4"></div>
-          <p className="text-gray-600">{t('loadingBookingDetails')}</p>
+          <p className="text-gray-700 font-medium">{t('loadingBookingDetails')}</p>
         </div>
       </div>
     );
@@ -107,14 +110,15 @@ const ManageBooking: React.FC = () => {
 
   if (error || !booking) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-pink-50 to-purple-50 flex items-center justify-center" dir={isRTL ? 'rtl' : 'ltr'}>
-        <div className="bg-white rounded-2xl shadow-xl p-8 max-w-md w-full mx-4">
+      <div className="relative min-h-screen flex items-center justify-center" dir={isRTL ? 'rtl' : 'ltr'}>
+        <AnimatedBackground />
+        <div className="relative z-10 bg-white/90 backdrop-blur-md rounded-2xl shadow-xl p-8 max-w-md w-full mx-4 border border-white/20">
           <div className="text-center">
             <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
               <span className="text-red-500 text-2xl">❌</span>
             </div>
-            <h1 className="text-2xl font-bold text-gray-900 mb-4">{t('bookingNotFound')}</h1>
-            <p className="text-gray-600 mb-6">{error}</p>
+            <h1 className="text-2xl font-bold text-gray-900 mb-4 drop-shadow-sm">{t('bookingNotFound')}</h1>
+            <p className="text-gray-700 mb-6 font-medium">{error}</p>
             <button
               onClick={() => navigate('/')}
               className="bg-pink-500 text-white px-6 py-3 rounded-lg hover:bg-pink-600 transition-colors"
@@ -136,23 +140,24 @@ const ManageBooking: React.FC = () => {
   });
 
   return (
-    <div className={`min-h-screen bg-gradient-to-br from-pink-50 to-purple-50 py-12 px-4 ${isRTL ? 'font-hebrew' : ''}`} dir={isRTL ? 'rtl' : 'ltr'}>
-      <div className="max-w-2xl mx-auto">
-        <div className="bg-white rounded-2xl shadow-xl overflow-hidden">
+    <div className={`relative min-h-screen py-12 px-4 ${isRTL ? 'font-hebrew' : ''}`} dir={isRTL ? 'rtl' : 'ltr'}>
+      <AnimatedBackground />
+      <div className="relative z-10 max-w-2xl mx-auto">
+        <div className="bg-white/90 backdrop-blur-md rounded-2xl shadow-xl overflow-hidden border border-white/20">
           {/* Header */}
-          <div className="bg-gradient-to-r from-pink-500 to-purple-600 px-8 py-6">
-            <h1 className="text-3xl font-bold text-white text-center">
+          <div className="bg-gradient-to-r from-pink-500 to-purple-600 px-8 py-6 backdrop-blur-sm">
+            <h1 className="text-3xl font-bold text-white text-center drop-shadow-md">
               ✨ {t('manageYourAppointment')}
             </h1>
-            <p className="text-pink-100 text-center mt-2">
+            <p className="text-pink-100 text-center mt-2 font-medium drop-shadow-sm">
               Beauty by Shanini
             </p>
           </div>
 
           {/* Booking Details */}
           <div className="p-8">
-            <div className="bg-gradient-to-r from-pink-50 to-purple-50 rounded-xl p-6 mb-8">
-              <h2 className="text-xl font-semibold text-gray-800 mb-4 flex items-center">
+            <div className="bg-gradient-to-r from-pink-50/90 to-purple-50/90 backdrop-blur-sm rounded-xl p-6 mb-8 border border-white/30">
+              <h2 className="text-xl font-semibold text-gray-800 mb-4 flex items-center drop-shadow-sm">
                 <span className={`${isRTL ? 'ml-2' : 'mr-2'}`}>📅</span>
                 {t('appointmentDetails')}
               </h2>

@@ -8,7 +8,8 @@ import 'react-calendar/dist/Calendar.css';
 import Modal from '../components/Modal';
 import { format } from 'date-fns';
 import { Link, useSearchParams } from 'react-router-dom';
-import { FaCheckCircle } from 'react-icons/fa';
+import { FaCheckCircle, FaCheck } from 'react-icons/fa';
+import AnimatedBackground from '../components/AnimatedBackground';
 
 type Step = 1 | 2 | 3 | 4 | 5 | 6;
 
@@ -22,15 +23,35 @@ interface Service {
   id: string;
   name: string;
   duration: number;
-  price: number;
+  price: number | string; // Can be a number or a range string like "10-80"
   is_addon: boolean;
 }
 
+// Helper function for calendar generation only (not displayed in UI)
 const formatDuration = (min: number) => {
   const hours = Math.floor(min / 60);
   const minutes = min % 60;
   return `${hours > 0 ? `${hours} hour${hours > 1 ? 's' : ''}` : ''} ${minutes > 0 ? `${minutes} min` : ''}`.trim();
-}
+};
+
+// Helper function to format price (handles ranges like "10-80")
+const formatPrice = (price: number | string): string => {
+  if (typeof price === 'string' && price.includes('-')) {
+    // Format as "10 - 80 ₪"
+    const parts = price.split('-').map(p => p.trim());
+    return `₪ ${parts.join(' - ')}`;
+  }
+  return `₪${Number(price).toFixed(0)}`;
+};
+
+// Helper function to get numeric price for calculations (uses minimum from range)
+const getNumericPrice = (price: number | string): number => {
+  if (typeof price === 'string' && price.includes('-')) {
+    const parts = price.split('-').map(p => p.trim());
+    return Number(parts[0]) || 0;
+  }
+  return Number(price) || 0;
+};
 
 const Booking = () => {
   // Cache for available dates per service
@@ -41,6 +62,9 @@ const Booking = () => {
   const [addOns, setAddOns] = useState<Service[]>([]);
   const [selectedService, setSelectedService] = useState<Service | null>(null);
   const [selectedAddOns, setSelectedAddOns] = useState<Service[]>([]);
+  const [customRequest, setCustomRequest] = useState<string>('');
+  const [customImage, setCustomImage] = useState<string | null>(null);
+  const [isCustomSelected, setIsCustomSelected] = useState<boolean>(false);
   // ...existing code...
   const { t, language, setLanguage } = useLanguage();
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
@@ -49,7 +73,7 @@ const Booking = () => {
   const [availableTimes, setAvailableTimes] = useState<string[]>([]);
   const [availableDates, setAvailableDates] = useState<Date[]>([]);
   useEffect(() => {
-    console.log('Available Dates:', availableDates);
+    // Available dates updated
   }, [availableDates]);
   const [selectedTime, setSelectedTime] = useState<string>('');
   const [formData, setFormData] = useState<FormData | null>(null);
@@ -104,13 +128,27 @@ const Booking = () => {
     }
   }, [searchParams, services, setValue]);
   useEffect(() => {
-    // Fetch main services and add-ons separately
+    // Fetch main services and add-ons separately with language parameter
     Promise.all([
-      api.get('/api/services/main'),
-      api.get('/api/services/addons')
+      api.get(`/api/services/main?language=${language}`),
+      api.get(`/api/services/addons?language=${language}`)
     ]).then(([mainServicesData, addOnsData]: [Service[], Service[]]) => {
       setServices(mainServicesData);
       setAddOns(addOnsData);
+      
+      // Check if there's a service ID in URL and auto-select it (from homepage click)
+      const serviceId = searchParams.get('service');
+      const reschedule = searchParams.get('reschedule');
+      if (serviceId && !reschedule && mainServicesData.length > 0) {
+        const service = mainServicesData.find(s => s.id === serviceId);
+        if (service && (!selectedService || selectedService.id !== serviceId)) {
+          setSelectedService(service);
+          // Only advance to step 2 if we're still on step 1 (initial load from homepage)
+          if (step === 1) {
+            setStep(2); // Go to add-ons selection step
+          }
+        }
+      }
       
       // Preload available dates for main services only
       mainServicesData.forEach(service => {
@@ -118,21 +156,39 @@ const Booking = () => {
           .then((data) => {
             setDatesCache(prev => ({
               ...prev,
-              [service.id]: (data.availableDates || []).map((d: string) => new Date(d))
+              [service.id]: (data.availableDates || []).map((d: string) => {
+                // Parse date string (YYYY-MM-DD) as local date to avoid timezone issues
+                const [year, month, day] = d.split('-').map(Number);
+                return new Date(year, month - 1, day);
+              })
             }));
           })
           .catch((err) => {
-            console.error(`Error preloading available dates for service ${service.id}:`, err);
+            if (import.meta.env.DEV) console.error(`Error preloading available dates for service ${service.id}:`, err);
           });
       });
     }).catch((error) => {
-      console.error('Error fetching services:', error);
+      if (import.meta.env.DEV) console.error('Error fetching services:', error);
       // Fallback to the original endpoint if the new endpoints don't work
-      api.get('/api/services').then((allServices: Service[]) => {
+      api.get(`/api/services?language=${language}`).then((allServices: Service[]) => {
         const mainServices = allServices.filter(s => !s.is_addon);
         const addOnServices = allServices.filter(s => s.is_addon);
         setServices(mainServices);
         setAddOns(addOnServices);
+        
+        // Check if there's a service ID in URL and auto-select it (from homepage click)
+        const serviceId = searchParams.get('service');
+        const reschedule = searchParams.get('reschedule');
+        if (serviceId && !reschedule && mainServices.length > 0) {
+          const service = mainServices.find(s => s.id === serviceId);
+          if (service && (!selectedService || selectedService.id !== serviceId)) {
+            setSelectedService(service);
+            // Only advance to step 2 if we're still on step 1 (initial load from homepage)
+            if (step === 1) {
+              setStep(2); // Go to add-ons selection step
+            }
+          }
+        }
         
         // Preload available dates for main services only
         mainServices.forEach(service => {
@@ -140,18 +196,22 @@ const Booking = () => {
             .then((data) => {
               setDatesCache(prev => ({
                 ...prev,
-                [service.id]: (data.availableDates || []).map((d: string) => new Date(d))
+                [service.id]: (data.availableDates || []).map((d: string) => {
+                  // Parse date string (YYYY-MM-DD) as local date to avoid timezone issues
+                  const [year, month, day] = d.split('-').map(Number);
+                  return new Date(year, month - 1, day);
+                })
               }));
             })
             .catch((err) => {
-              console.error(`Error preloading available dates for service ${service.id}:`, err);
+              if (import.meta.env.DEV) console.error(`Error preloading available dates for service ${service.id}:`, err);
             });
         });
       }).catch((fallbackError) => {
-        console.error('Error fetching services from fallback endpoint:', fallbackError);
+        if (import.meta.env.DEV) console.error('Error fetching services from fallback endpoint:', fallbackError);
       });
     });
-  }, []);
+  }, [api, language, searchParams]);
   useEffect(() => {
     if (selectedService) {
       // If cached, use instantly
@@ -162,12 +222,40 @@ const Booking = () => {
         setLoadingDates(true);
         api.get(`/api/availability/dates?serviceId=${selectedService.id}`)
           .then((data) => {
-            const dates = (data.availableDates || []).map((d: string) => new Date(d));
+            const dates = (data.availableDates || []).map((d: string) => {
+              // Parse date string (YYYY-MM-DD) as local date to avoid timezone issues
+              const [year, month, day] = d.split('-').map(Number);
+              return new Date(year, month - 1, day);
+            });
             setAvailableDates(dates);
             setDatesCache(prev => ({ ...prev, [selectedService.id]: dates }));
           })
-          .catch((err) => {
-            console.error('Error fetching available dates:', err);
+          .catch((err: any) => {
+            if (import.meta.env.DEV) console.error('Error fetching available dates:', err);
+            // If service not found, reload services list and clear selection
+            if (err?.message?.includes('Service not found') || err?.error === 'Service not found') {
+              if (import.meta.env.DEV) console.log('Service not found, reloading services...');
+              api.get(`/api/services/main?language=${language}`).then((mainServicesData: Service[]) => {
+                setServices(mainServicesData);
+                // Clear selection if current service doesn't exist anymore
+                const serviceExists = mainServicesData.some(s => s.id === selectedService.id);
+                if (!serviceExists) {
+                  setSelectedService(null);
+                  setStep(1);
+                }
+              }).catch(() => {
+                // Fallback to full services list
+                api.get(`/api/services?language=${language}`).then((allServices: Service[]) => {
+                  const mainServices = allServices.filter(s => !s.is_addon);
+                  setServices(mainServices);
+                  const serviceExists = mainServices.some(s => s.id === selectedService.id);
+                  if (!serviceExists) {
+                    setSelectedService(null);
+                    setStep(1);
+                  }
+                });
+              });
+            }
           })
           .finally(() => {
             setLoadingDates(false);
@@ -177,13 +265,41 @@ const Booking = () => {
       setAvailableDates([]);
       setLoadingDates(false);
     }
-  }, [selectedService]);
+  }, [selectedService, language, datesCache]);
   useEffect(() => {
     if (selectedDate && selectedService) {
       const day = format(selectedDate, 'yyyy-MM-dd');
-      api.get(`/api/availability?day=${day}&serviceId=${selectedService.id}`).then((data) => setAvailableTimes(data.availableTimes));
+      api.get(`/api/availability?day=${day}&serviceId=${selectedService.id}`)
+        .then((data) => setAvailableTimes(data.availableTimes))
+        .catch((err: any) => {
+          if (import.meta.env.DEV) console.error('Error fetching available times:', err);
+          // If service not found, reload services list and clear selection
+          if (err?.message?.includes('Service not found') || err?.error === 'Service not found') {
+            if (import.meta.env.DEV) console.log('Service not found, reloading services...');
+            api.get(`/api/services/main?language=${language}`).then((mainServicesData: Service[]) => {
+              setServices(mainServicesData);
+              // Clear selection if current service doesn't exist anymore
+              const serviceExists = mainServicesData.some(s => s.id === selectedService.id);
+              if (!serviceExists) {
+                setSelectedService(null);
+                setStep(1);
+              }
+            }).catch(() => {
+              // Fallback to full services list
+              api.get(`/api/services?language=${language}`).then((allServices: Service[]) => {
+                const mainServices = allServices.filter(s => !s.is_addon);
+                setServices(mainServices);
+                const serviceExists = mainServices.some(s => s.id === selectedService.id);
+                if (!serviceExists) {
+                  setSelectedService(null);
+                  setStep(1);
+                }
+              });
+            });
+          }
+        });
     }
-  }, [selectedDate, selectedService]);
+  }, [selectedDate, selectedService, language]);
   const onSubmit = (data: FormData) => {
     setFormData(data);
     setStep(6);
@@ -199,20 +315,22 @@ const Booking = () => {
 
         // Create new booking
         await api.post('/api/bookings', {
-          service_id: selectedService.id,
-          addon_ids: selectedAddOns.map(addon => addon.id), // Include selected add-ons
+          service_id: String(selectedService.id), // Ensure service_id is a string
+          addon_ids: selectedAddOns.map(addon => String(addon.id)), // Ensure addon_ids are strings
           date: format(selectedDate, 'yyyy-MM-dd'),
           time: selectedTime,
           client_name: formData.name,
           client_phone: formData.phone,
           client_email: formData.email,
           language,
+          custom_request: customRequest.trim() || null, // Include custom request if provided
+          custom_image: customImage || null, // Include custom image if provided
         });
         
         setBookingCompleted(true);
         setShowSuccess(true);
       } catch (error) {
-        console.error('Booking failed:', error);
+        if (import.meta.env.DEV) console.error('Booking failed:', error);
         alert('Failed to create booking. Please try again.');
       } finally {
         setIsBookingLoading(false);
@@ -225,7 +343,7 @@ const Booking = () => {
 
     // Calculate total duration including add-ons
     const totalDuration = selectedService.duration + selectedAddOns.reduce((total, addon) => total + addon.duration, 0);
-    const totalPrice = Number(selectedService.price || 0) + selectedAddOns.reduce((total, addon) => total + Number(addon.price || 0), 0);
+    const totalPrice = getNumericPrice(selectedService.price || 0) + selectedAddOns.reduce((total, addon) => total + getNumericPrice(addon.price || 0), 0);
 
     // Format date and time for calendar
     const pad = (n: number) => n.toString().padStart(2, '0');
@@ -303,38 +421,38 @@ END:VCALENDAR`;
   };
   const steps = [1, 2, 3, 4, 5, 6];
   return (
-    <section className="py-20 px-4 bg-gradient-to-br from-butter-yellow/20 to-soft-pink/20 min-h-screen">
-      <div className="max-w-4xl mx-auto">
-        <h1 className="text-4xl font-bold text-center mb-12 text-pink-accent">
+    <section className="relative py-8 sm:py-12 md:py-20 px-4 min-h-screen">
+      <AnimatedBackground />
+      <div className="relative z-10 max-w-4xl mx-auto">
+        <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold text-center mb-6 sm:mb-8 md:mb-12 text-pink-accent px-2 backdrop-blur-sm bg-white/40 rounded-2xl p-4 shadow-lg drop-shadow-md">
           {isReschedule ? t('rescheduleYourAppointment') : t('bookYourAppointment')}
         </h1>
-        <div className="flex justify-center mb-12">
-          {steps.map((s, index) => (
-            <motion.div 
-              key={s}
-              initial={{ scale: 0.8, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              transition={{ delay: index * 0.1 }}
-              className={`w-10 h-10 rounded-full mx-3 flex items-center justify-center text-white font-bold step-number ${
-                s <= step ? 'bg-pink-accent shadow-md' : 'bg-baby-blue/50'
-              }`}
-            >
-              {s}
-            </motion.div>
-          ))}
+        <div className="flex justify-center mb-6 sm:mb-8 md:mb-12 overflow-x-auto pb-2">
+          <div className="flex items-center">
+            {steps.map((s) => (
+              <div 
+                key={s}
+                className={`w-8 h-8 sm:w-10 sm:h-10 rounded-full mx-1 sm:mx-2 md:mx-3 flex items-center justify-center text-white text-sm sm:text-base font-bold step-number flex-shrink-0 ${
+                  s <= step ? 'bg-pink-accent shadow-md' : 'bg-baby-blue/50'
+                }`}
+              >
+                {s}
+              </div>
+            ))}
+          </div>
         </div>
-        <motion.div 
+        <div 
           key={step}
-          initial={{ opacity: 0, y: 50 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5 }}
-          className="bg-white p-8 rounded-2xl shadow-soft"
+          className="bg-white/90 backdrop-blur-md p-4 sm:p-6 md:p-8 rounded-xl sm:rounded-2xl shadow-md border border-white/20"
         >
           {step === 1 && (
             <div>
-              <h2 className="text-3xl font-bold mb-8 text-center text-text-dark">{t('selectService')}</h2>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                {services.map((s, idx) => {
+              <h2 className="text-2xl sm:text-3xl font-bold mb-6 sm:mb-8 text-center text-text-dark px-2">{t('selectService')}</h2>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 md:gap-6">
+                {services.filter(s => !s.is_addon).map((s, idx) => {
+                  const isSelected = selectedService?.id === s.id;
+                  const serviceName = s.name || '';
+                  const isIndividualNailFix = serviceName.toLowerCase().includes('individual') || serviceName.toLowerCase().includes('השלמת');
                   const cardColors = [
                     'bg-gradient-to-br from-baby-blue/80 to-white',
                     'bg-gradient-to-br from-soft-pink/80 to-white',
@@ -342,27 +460,41 @@ END:VCALENDAR`;
                     'bg-gradient-to-br from-pink-accent/80 to-white',
                     'bg-gradient-to-br from-green-200/80 to-white',
                     'bg-gradient-to-br from-purple-100/80 to-white',
-                    'bg-gradient-to-br from-orange-100/80 to-white',
-                    'bg-gradient-to-br from-cyan-100/80 to-white',
-                    'bg-gradient-to-br from-lime-100/80 to-white',
-                    'bg-gradient-to-br from-fuchsia-100/80 to-white',
-                    'bg-gradient-to-br from-rose-100/80 to-white',
-                    'bg-gradient-to-br from-amber-100/80 to-white',
                   ];
                   return (
-                    <motion.button
+                    <button
                       key={s.id}
                       onClick={() => { setSelectedService(s); setStep(2); }}
-                      whileHover={{ y: -6, scale: 1.045, boxShadow: '0 12px 32px rgba(0,0,0,0.10)' }}
-                      className={`${cardColors[idx % cardColors.length]} relative p-4 md:p-6 rounded-2xl shadow-xl border border-white/60 text-center transition-all duration-300 hover:border-pink-accent/60 group min-h-[100px] flex flex-col items-center justify-between overflow-hidden`}
+                      className={`${cardColors[idx % cardColors.length]} relative p-4 sm:p-5 md:p-6 rounded-xl sm:rounded-2xl shadow-md border-2 text-center transition-shadow duration-200 active:shadow-lg active:scale-[0.98] group min-h-[120px] sm:min-h-[140px] flex flex-col items-center justify-between overflow-hidden touch-manipulation ${
+                        isSelected 
+                          ? 'border-pink-accent bg-pink-accent/20 shadow-lg ring-2 ring-pink-accent/30' 
+                          : 'border-white/60'
+                      }`}
                     >
-                      <div className="absolute inset-0 pointer-events-none rounded-3xl" style={{background: 'linear-gradient(120deg,rgba(255,255,255,0.10) 0%,rgba(255,255,255,0.22) 100%)'}}></div>
-                      <h3 className="relative z-10 font-extrabold text-xl md:text-2xl mb-2 text-gray-900 leading-tight hyphens-auto drop-shadow-sm">{s.name}</h3>
-                      <div className="relative z-10 flex flex-col items-center gap-1 mb-2">
-                        <span className="text-base md:text-lg text-gray-800 font-medium">{formatDuration(s.duration)}</span>
-                        <span className="text-2xl md:text-3xl font-extrabold text-pink-accent/70 tracking-tight">₪{Number(s.price).toFixed(0)}</span>
+                      <div className="absolute inset-0 pointer-events-none rounded-2xl" style={{background: 'linear-gradient(120deg,rgba(255,255,255,0.10) 0%,rgba(255,255,255,0.22) 100%)'}}></div>
+                      
+                      {/* Selected indicator */}
+                      {isSelected && (
+                        <div className="absolute top-3 right-3 z-20 bg-pink-accent text-white rounded-full p-1.5 shadow-lg">
+                          <FaCheck className="text-sm" />
+                        </div>
+                      )}
+                      
+                      <div className="relative z-10 w-full flex-grow flex flex-col items-center justify-center">
+                        <h3 className="font-extrabold text-lg md:text-xl mb-3 text-gray-900 leading-tight">{serviceName}</h3>
+                        
+                        {/* Individual Nail Fix description */}
+                        {isIndividualNailFix && (
+                          <p className="text-xs md:text-sm text-gray-600 mb-3 px-2 text-center italic">
+                            {t('individualNailFixNote')}
+                          </p>
+                        )}
+                        
+                        <div className="mt-auto">
+                          <span className="text-2xl md:text-3xl font-extrabold text-pink-accent tracking-tight">₪{Number(s.price).toFixed(0)}</span>
+                        </div>
                       </div>
-                    </motion.button>
+                    </button>
                   );
                 })}
               </div>
@@ -370,50 +502,139 @@ END:VCALENDAR`;
           )}
           {step === 2 && (
             <div>
-              <h2 className="text-3xl font-bold mb-8 text-center text-text-dark">{t('selectAddOns')}</h2>
+              <h2 className="text-2xl sm:text-3xl font-bold mb-4 sm:mb-6 text-center text-text-dark px-2">{t('selectAddOns')}</h2>
               {addOns.length > 0 ? (
-                <div className="space-y-4">
-                  <p className="text-center text-gray-600 mb-6">
-                    {t('selectAddOns')}
+                <div className="space-y-6">
+                  {/* Intro text */}
+                  <p className="text-center text-gray-700 mb-6 text-base md:text-lg font-medium">
+                    {t('nailArtAddOnsIntro')}
                   </p>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  
+                  {/* Add-ons grid */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 md:gap-4">
                     {addOns.map((addon) => {
                       const isSelected = selectedAddOns.some(a => a.id === addon.id);
+                      const isCustom = addon.name?.toLowerCase().includes('custom') || (addon as any).name_en?.toLowerCase().includes('custom');
+                      
                       return (
-                        <motion.div
+                        <button
                           key={addon.id}
-                          whileHover={{ scale: 1.02 }}
-                          className={`p-4 rounded-xl border-2 cursor-pointer transition-all ${
-                            isSelected 
-                              ? 'border-pink-accent bg-pink-accent/10' 
-                              : 'border-gray-200 hover:border-pink-accent/50'
-                          }`}
+                          type="button"
                           onClick={() => {
-                            if (isSelected) {
-                              setSelectedAddOns(selectedAddOns.filter(a => a.id !== addon.id));
+                            if (isCustom) {
+                              setIsCustomSelected(!isCustomSelected);
+                              if (!isCustomSelected) {
+                                setSelectedAddOns([...selectedAddOns, addon]);
+                              } else {
+                                setSelectedAddOns(selectedAddOns.filter(a => a.id !== addon.id));
+                                setCustomRequest('');
+                                setCustomImage(null);
+                              }
                             } else {
-                              setSelectedAddOns([...selectedAddOns, addon]);
+                              if (isSelected) {
+                                setSelectedAddOns(selectedAddOns.filter(a => a.id !== addon.id));
+                              } else {
+                                setSelectedAddOns([...selectedAddOns, addon]);
+                              }
                             }
                           }}
+                          className={`relative p-3 sm:p-4 rounded-xl border-2 cursor-pointer transition-shadow duration-200 active:scale-[0.98] text-left touch-manipulation ${
+                            isSelected 
+                              ? 'border-pink-accent bg-pink-accent/15 shadow-md ring-2 ring-pink-accent/20' 
+                              : 'border-gray-200 bg-white'
+                          }`}
+                          dir={language === 'he' ? 'rtl' : 'ltr'}
                         >
-                          <div className="flex justify-between items-center">
-                            <div>
-                              <h3 className="font-bold text-lg">{addon.name}</h3>
-                              <p className="text-sm text-gray-600">{formatDuration(addon.duration)}</p>
+                          {/* Selected checkmark */}
+                          {isSelected && (
+                            <div className={`absolute top-2 ${language === 'he' ? 'left-2' : 'right-2'} bg-pink-accent text-white rounded-full p-1 shadow-sm`}>
+                              <FaCheck className="text-xs" />
                             </div>
-                            <div className="text-right">
-                              <span className="text-xl font-bold text-pink-accent">₪{Number(addon.price).toFixed(0)}</span>
-                              {isSelected && <div className="text-green-500">✓ Selected</div>}
+                          )}
+                          
+                          <div className={`flex ${language === 'he' ? 'flex-row-reverse' : 'flex-row'} justify-between items-center gap-3`}>
+                            <div className="flex-grow">
+                              <h3 className="font-bold text-base md:text-lg text-gray-900 mb-1">{addon.name}</h3>
+                              {isCustom && (
+                                <p className="text-xs text-gray-600 mt-1">{language === 'he' ? 'ציין מה תרצי' : 'Specify what you want'}</p>
+                              )}
                             </div>
+                            {!isCustom && (
+                              <div className={`flex-shrink-0 ${language === 'he' ? 'text-left' : 'text-right'}`}>
+                                <span className="text-lg md:text-xl font-extrabold text-pink-accent">{formatPrice(addon.price)}</span>
+                              </div>
+                            )}
                           </div>
-                        </motion.div>
+                        </button>
                       );
                     })}
                   </div>
-                  <div className="text-center mt-6">
+                  
+                  {/* Custom request text input and image upload */}
+                  {isCustomSelected && (
+                    <div className="mt-4 space-y-4">
+                      <div>
+                        <label className="block text-sm font-semibold text-gray-700 mb-2">
+                          {language === 'he' ? 'מה תרצי? (למנהל בלבד - אופציונלי)' : 'What would you like? (For admin only - Optional)'}
+                        </label>
+                        <textarea
+                          value={customRequest}
+                          onChange={(e) => setCustomRequest(e.target.value)}
+                          placeholder={language === 'he' ? 'תיאור הבקשה המותאמת אישית... (אופציונלי)' : 'Describe your custom request... (Optional)'}
+                          className="w-full p-4 border-2 border-gray-200 rounded-xl focus:border-pink-accent outline-none bg-white resize-none"
+                          rows={3}
+                          dir={language === 'he' ? 'rtl' : 'ltr'}
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-semibold text-gray-700 mb-2">
+                          {language === 'he' ? 'העלה תמונה (אופציונלי)' : 'Upload Image (Optional)'}
+                        </label>
+                        <div className="flex flex-col gap-3">
+                          <input
+                            type="file"
+                            accept="image/*"
+                            onChange={(e) => {
+                              const file = e.target.files?.[0];
+                              if (file) {
+                                const reader = new FileReader();
+                                reader.onloadend = () => {
+                                  setCustomImage(reader.result as string);
+                                };
+                                reader.readAsDataURL(file);
+                              }
+                            }}
+                            className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-sm file:font-semibold file:bg-pink-accent file:text-white hover:file:bg-pink-accent/90 cursor-pointer"
+                          />
+                          {customImage && (
+                            <div className="relative inline-block">
+                              <img 
+                                src={customImage} 
+                                alt="Custom request" 
+                                className="max-w-xs max-h-48 rounded-xl border-2 border-gray-200"
+                              />
+                              <button
+                                type="button"
+                                onClick={() => setCustomImage(null)}
+                                className="absolute top-2 right-2 bg-red-500 text-white rounded-full p-1 hover:bg-red-600 transition"
+                                title={language === 'he' ? 'הסר תמונה' : 'Remove image'}
+                              >
+                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                                </svg>
+                              </button>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                  
+                  {/* Continue button */}
+                  <div className="text-center pt-4">
                     <button 
                       onClick={() => setStep(3)} 
-                      className="bg-pink-accent text-white py-3 px-8 rounded-xl shadow-soft hover:shadow-lg transition"
+                      className="bg-pink-accent text-white py-3 px-8 sm:px-10 rounded-xl shadow-md hover:shadow-lg active:scale-95 transition-all duration-200 font-semibold text-base sm:text-lg touch-manipulation min-w-[140px]"
                     >
                       {t('continue')}
                     </button>
@@ -424,18 +645,23 @@ END:VCALENDAR`;
                   <p className="text-gray-600 mb-6">{t('noAddOnsAvailable')}</p>
                   <button 
                     onClick={() => setStep(3)} 
-                    className="bg-pink-accent text-white py-3 px-8 rounded-xl shadow-soft hover:shadow-lg transition"
+                    className="bg-pink-accent text-white py-3 px-8 sm:px-10 rounded-xl shadow-md hover:shadow-lg active:scale-95 transition-all duration-200 font-semibold text-base sm:text-lg touch-manipulation min-w-[140px]"
                   >
                     {t('continue')}
                   </button>
                 </div>
               )}
-              <button onClick={() => setStep(1)} className="mt-6 text-pink-accent hover:underline block mx-auto">{t('back')}</button>
+              <button 
+                onClick={() => setStep(1)} 
+                className="mt-6 text-pink-accent hover:text-pink-accent/80 active:opacity-70 transition-opacity duration-200 block mx-auto font-medium text-sm sm:text-base touch-manipulation"
+              >
+                {t('back')}
+              </button>
             </div>
           )}
           {step === 3 && (
             <div>
-              <h2 className="text-3xl font-extrabold mb-8 text-center text-pink-accent drop-shadow">{t('selectDate')}</h2>
+              <h2 className="text-2xl sm:text-3xl font-extrabold mb-6 sm:mb-8 text-center text-pink-accent drop-shadow px-2">{t('selectDate')}</h2>
               <div className="flex justify-center items-center min-h-[500px]">
                 {loadingDates ? (
                   <div className="flex flex-col items-center justify-center w-full max-w-2xl h-[500px]">
@@ -445,10 +671,10 @@ END:VCALENDAR`;
                 ) : (
                   <div className="w-full max-w-2xl h-[500px] bg-white rounded-2xl shadow-soft p-4 md:p-6 flex flex-col items-center justify-center">
                     {/* Custom Calendar Header */}
-                    <div className="flex items-center justify-between w-full mb-4">
+                    <div className="flex items-center justify-between w-full mb-4 px-2">
                       <button
                         aria-label="Previous Month"
-                        className="p-2 rounded-full bg-baby-blue/60 hover:bg-baby-blue/80 text-pink-accent shadow transition"
+                        className="p-2.5 sm:p-3 rounded-full bg-baby-blue/60 hover:bg-baby-blue/80 active:scale-90 text-pink-accent shadow-md transition-all duration-200 touch-manipulation min-w-[44px] min-h-[44px] flex items-center justify-center"
                         onClick={() => setCalendarDate(prev => {
                           const prevMonth = new Date(prev.getFullYear(), prev.getMonth() - 1, 1);
                           return prevMonth;
@@ -456,12 +682,12 @@ END:VCALENDAR`;
                       >
                         &#8592;
                       </button>
-                      <span className="font-bold text-xl text-pink-accent">
+                      <span className="font-bold text-lg sm:text-xl text-pink-accent px-2">
                         {format(calendarDate, 'MMMM yyyy')}
                       </span>
                       <button
                         aria-label="Next Month"
-                        className="p-2 rounded-full bg-baby-blue/60 hover:bg-baby-blue/80 text-pink-accent shadow transition"
+                        className="p-2.5 sm:p-3 rounded-full bg-baby-blue/60 hover:bg-baby-blue/80 active:scale-90 text-pink-accent shadow-md transition-all duration-200 touch-manipulation min-w-[44px] min-h-[44px] flex items-center justify-center"
                         onClick={() => setCalendarDate(prev => {
                           const nextMonth = new Date(prev.getFullYear(), prev.getMonth() + 1, 1);
                           return nextMonth;
@@ -521,7 +747,7 @@ END:VCALENDAR`;
           )}
           {step === 4 && (
             <div>
-              <h2 className="text-3xl font-bold mb-8 text-center text-text-dark">{t('selectTime')}</h2>
+              <h2 className="text-2xl sm:text-3xl font-bold mb-6 sm:mb-8 text-center text-text-dark px-2">{t('selectTime')}</h2>
               <div className="max-h-[400px] overflow-y-auto flex flex-col gap-4 items-center">
                 {(() => {
                   const filteredTimes = availableTimes.filter((time) => {
@@ -561,39 +787,107 @@ END:VCALENDAR`;
                   }
 
                   return filteredTimes.map((time) => (
-                    <motion.button
+                    <button
                       key={time}
                       onClick={() => { setSelectedTime(time); setStep(5); }}
-                      whileHover={{ scale: 1.05 }}
-                      className="bg-pink-accent/60 text-black font-bold rounded-full shadow-md border-2 border-pink-accent/30 hover:bg-pink-accent/80 transition w-full py-4"
-                      style={{ maxWidth: '300px' }}
+                      className="bg-pink-accent/60 text-gray-900 font-bold rounded-full shadow-md border-2 border-pink-accent/30 hover:bg-pink-accent/80 active:scale-95 transition-all duration-200 w-full py-3.5 sm:py-4 max-w-[300px] mx-auto touch-manipulation text-base sm:text-lg"
                     >
                       {time}
-                    </motion.button>
+                    </button>
                   ));
                 })()}
               </div>
-              <button onClick={() => setStep(3)} className="mt-6 text-pink-accent hover:underline block mx-auto">{t('back')}</button>
+              <button 
+                onClick={() => setStep(3)} 
+                className="mt-6 text-pink-accent hover:text-pink-accent/80 active:opacity-70 transition-opacity duration-200 block mx-auto font-medium text-sm sm:text-base touch-manipulation"
+              >
+                {t('back')}
+              </button>
             </div>
           )}
           {step === 5 && (
             <form onSubmit={handleSubmit(onSubmit)}>
-              <h2 className="text-3xl font-bold mb-8 text-center text-text-dark">{t('clientInfo')}</h2>
+              <h2 className="text-2xl sm:text-3xl font-bold mb-6 sm:mb-8 text-center text-text-dark px-2">{t('clientInfo')}</h2>
               <div className="space-y-6">
                 <input {...register('name', { required: true })} placeholder={t('name')} className="block w-full p-4 border border-baby-blue/50 rounded-xl focus:border-pink-accent outline-none bg-white/50" />
                 {errors.name && <p className="text-red-500 text-center">{t('requiredField')}</p>}
-                <input {...register('phone', { required: true })} placeholder={t('phone')} className="block w-full p-4 border border-baby-blue/50 rounded-xl focus:border-pink-accent outline-none bg-white/50" />
-                {errors.phone && <p className="text-red-500 text-center">{t('requiredField')}</p>}
-                <input {...register('email', { required: true, pattern: /^\S+@\S+$/i })} placeholder={t('email')} className="block w-full p-4 border border-baby-blue/50 rounded-xl focus:border-pink-accent outline-none bg-white/50" />
-                {errors.email && <p className="text-red-500 text-center">{t('validEmailRequired')}</p>}
+                <input 
+                  {...register('phone', { 
+                    required: true,
+                    validate: (value) => {
+                      if (!value) return language === 'he' ? 'מספר טלפון נדרש' : 'Phone number is required';
+                      
+                      // Remove spaces, dashes, parentheses, and other formatting characters
+                      const cleaned = value.replace(/[\s\-\(\)\.]/g, '');
+                      
+                      // Check if it's a valid Israeli mobile phone number
+                      // Formats: 05X-XXXXXXX, +972-5X-XXXXXXX, 05XXXXXXXXX, etc.
+                      // Must start with 05 or +9725 and have 9-10 digits total
+                      const israeliMobileRegex = /^(\+972|0)?5[0-9]{8}$/;
+                      const isValid = israeliMobileRegex.test(cleaned);
+                      
+                      if (!isValid) {
+                        return language === 'he' 
+                          ? 'מספר טלפון לא תקין. אנא הכנס מספר ישראלי (05X-XXXXXXX)' 
+                          : 'Invalid phone number. Please enter a valid Israeli phone number (05X-XXXXXXX)';
+                      }
+                      
+                      return true;
+                    }
+                  })} 
+                  type="tel"
+                  placeholder={language === 'he' ? 'טלפון (05X-XXXXXXX)' : 'Phone (05X-XXXXXXX)'} 
+                  className="block w-full p-4 border border-baby-blue/50 rounded-xl focus:border-pink-accent outline-none bg-white/50" 
+                />
+                {errors.phone && (
+                  <p className="text-red-500 text-center text-sm">
+                    {errors.phone.type === 'required' 
+                      ? t('requiredField') 
+                      : errors.phone.message || (language === 'he' ? 'מספר טלפון לא תקין' : 'Invalid phone number')}
+                  </p>
+                )}
+                <input 
+                  {...register('email', { 
+                    required: true, 
+                    pattern: {
+                      value: /^[^\s@]+@[^\s@]+\.[^\s@]+$/,
+                      message: language === 'he' ? 'כתובת אימייל לא תקינה' : 'Invalid email address'
+                    },
+                    validate: (value) => {
+                      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+                      return emailRegex.test(value) || (language === 'he' ? 'כתובת אימייל לא תקינה' : 'Invalid email address');
+                    }
+                  })} 
+                  type="email"
+                  placeholder={t('email')} 
+                  className="block w-full p-4 border border-baby-blue/50 rounded-xl focus:border-pink-accent outline-none bg-white/50" 
+                />
+                {errors.email && (
+                  <p className="text-red-500 text-center text-sm">
+                    {errors.email.type === 'required' 
+                      ? t('requiredField') 
+                      : errors.email.message || (language === 'he' ? 'כתובת אימייל לא תקינה' : 'Invalid email address')}
+                  </p>
+                )}
               </div>
-              <button type="submit" className="mt-8 w-full bg-pink-accent text-white py-4 rounded-xl shadow-soft hover:shadow-lg transition">{t('next')}</button>
-              <button type="button" onClick={() => setStep(4)} className="mt-4 text-pink-accent hover:underline block mx-auto">{t('back')}</button>
+              <button 
+                type="submit" 
+                className="mt-6 sm:mt-8 w-full bg-pink-accent text-white py-3.5 sm:py-4 rounded-xl shadow-md hover:shadow-lg active:scale-[0.98] transition-all duration-200 font-semibold text-base sm:text-lg touch-manipulation"
+              >
+                {t('next')}
+              </button>
+              <button 
+                type="button" 
+                onClick={() => setStep(4)} 
+                className="mt-4 text-pink-accent hover:text-pink-accent/80 active:opacity-70 transition-opacity duration-200 block mx-auto font-medium text-sm sm:text-base touch-manipulation"
+              >
+                {t('back')}
+              </button>
             </form>
           )}
           {step === 6 && (
             <div>
-              <h2 className="text-3xl font-bold mb-8 text-center text-text-dark">{t('confirmation')}</h2>
+              <h2 className="text-2xl sm:text-3xl font-bold mb-6 sm:mb-8 text-center text-text-dark px-2">{t('confirmation')}</h2>
               <div className="bg-baby-blue/20 p-6 rounded-xl mb-8 space-y-2 booking-details">
                 <p className="text-lg"><span className="font-bold">{t('service')}:</span> {selectedService?.name}</p>
                 {selectedAddOns.length > 0 && (
@@ -601,15 +895,27 @@ END:VCALENDAR`;
                     <span className="font-bold">{t('addOns')}:</span> {selectedAddOns.map(addon => addon.name).join(', ')}
                   </p>
                 )}
+                {(customRequest.trim() || customImage) && (
+                  <div className="space-y-2">
+                    {customRequest.trim() && (
+                      <p className="text-lg">
+                        <span className="font-bold">{language === 'he' ? 'בקשה מותאמת אישית' : 'Custom Request'}:</span> {customRequest}
+                      </p>
+                    )}
+                    {customImage && (
+                      <div className="mt-2">
+                        <p className="font-bold text-lg mb-2">{language === 'he' ? 'תמונה' : 'Image'}:</p>
+                        <img src={customImage} alt="Custom request" className="max-w-xs max-h-48 rounded-xl border-2 border-gray-200" />
+                      </div>
+                    )}
+                  </div>
+                )}
                 <p className="text-lg"><span className="font-bold">{t('date')}:</span> {selectedDate ? format(selectedDate, 'PPP') : ''}</p>
                 <p className="text-lg"><span className="font-bold">{t('time')}:</span> {selectedTime}</p>
-                <p className="text-lg"><span className="font-bold">{t('duration')}:</span> {formatDuration(
-                  (selectedService?.duration || 0) + selectedAddOns.reduce((total, addon) => total + addon.duration, 0)
-                )}</p>
                 <p className="text-lg"><span className="font-bold">{t('totalPrice')}:</span> ₪{
                   (() => {
                     const servicePrice = Number(selectedService?.price || 0);
-                    const addOnsPrice = selectedAddOns.reduce((total, addon) => total + Number(addon.price || 0), 0);
+                    const addOnsPrice = selectedAddOns.reduce((total, addon) => total + getNumericPrice(addon.price || 0), 0);
                     return (servicePrice + addOnsPrice).toFixed(2);
                   })()
                 }</p>
@@ -622,7 +928,7 @@ END:VCALENDAR`;
               {bookingCompleted ? (
                 <Link 
                   to="/"
-                  className="w-full py-4 rounded-xl shadow-soft transition-all duration-300 bg-green-500 hover:bg-green-600 hover:shadow-lg text-white font-semibold flex items-center justify-center"
+                  className="w-full py-3.5 sm:py-4 rounded-xl shadow-md hover:shadow-lg transition-all duration-200 bg-green-500 hover:bg-green-600 active:scale-[0.98] text-white font-semibold text-base sm:text-lg flex items-center justify-center touch-manipulation"
                 >
                   <FaCheckCircle className="mr-2" />
                   {t('backToHome')}
@@ -631,11 +937,11 @@ END:VCALENDAR`;
                 <button 
                   onClick={confirmBooking} 
                   disabled={isBookingLoading || bookingCompleted}
-                  className={`w-full py-4 rounded-xl shadow-soft transition-all duration-300 ${
+                  className={`w-full py-3.5 sm:py-4 rounded-xl shadow-md transition-all duration-200 font-semibold text-base sm:text-lg flex items-center justify-center touch-manipulation ${
                     isBookingLoading || bookingCompleted
                       ? 'bg-gray-400 cursor-not-allowed' 
-                      : 'bg-pink-accent hover:shadow-lg hover:bg-pink-accent/90'
-                  } text-white font-semibold flex items-center justify-center`}
+                      : 'bg-pink-accent hover:shadow-lg hover:bg-pink-accent/90 active:scale-[0.98]'
+                  } text-white`}
                 >
                   {isBookingLoading ? (
                     <>
@@ -676,7 +982,7 @@ END:VCALENDAR`;
               )}
             </div>
           )}
-        </motion.div>
+        </div>
       </div>
       <Modal isOpen={showSuccess} onClose={() => setShowSuccess(false)}>
         <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} className="text-center p-8">
@@ -701,13 +1007,10 @@ END:VCALENDAR`;
             )}
             <p className="mb-2">{t('date')}: {selectedDate ? format(selectedDate, 'PPP') : ''}</p>
             <p className="mb-2">{t('time')}: {selectedTime}</p>
-            <p className="mb-2">{t('duration')}: {formatDuration(
-              (selectedService?.duration || 0) + selectedAddOns.reduce((total, addon) => total + addon.duration, 0)
-            )}</p>
             <p className="mb-6 font-semibold">{t('totalPrice')}: ₪{
               (() => {
-                const servicePrice = Number(selectedService?.price || 0);
-                const addOnsPrice = selectedAddOns.reduce((total, addon) => total + Number(addon.price || 0), 0);
+                const servicePrice = getNumericPrice(selectedService?.price || 0);
+                const addOnsPrice = selectedAddOns.reduce((total, addon) => total + getNumericPrice(addon.price || 0), 0);
                 return (servicePrice + addOnsPrice).toFixed(2);
               })()
             }</p>
@@ -717,19 +1020,24 @@ END:VCALENDAR`;
             <p className="text-lg font-semibold text-gray-700 mb-3">{t('addToCalendarLabel')}</p>
             <button 
               onClick={() => handleAddToCalendar('google')}
-              className="block w-full bg-blue-500 hover:bg-blue-600 text-white py-3 px-4 rounded-xl transition-colors duration-200 font-medium"
+              className="block w-full bg-blue-500 hover:bg-blue-600 active:scale-[0.98] text-white py-3.5 sm:py-4 px-4 sm:px-6 rounded-xl shadow-md hover:shadow-lg transition-all duration-200 font-semibold text-base sm:text-lg touch-manipulation mb-3"
             >
               {t('addToGoogleCalendar')}
             </button>
             <button 
               onClick={() => handleAddToCalendar('ios')}
-              className="block w-full bg-gray-600 hover:bg-gray-700 text-white py-3 px-4 rounded-xl transition-colors duration-200 font-medium"
+              className="block w-full bg-gray-600 hover:bg-gray-700 active:scale-[0.98] text-white py-3.5 sm:py-4 px-4 sm:px-6 rounded-xl shadow-md hover:shadow-lg transition-all duration-200 font-semibold text-base sm:text-lg touch-manipulation"
             >
               {t('addToAppleCalendar')}
             </button>
           </div>
           
-          <Link to="/" className="block bg-pink-accent text-white py-3 rounded-xl">{t('returnHome')}</Link>
+          <Link 
+            to="/" 
+            className="block w-full bg-pink-accent hover:bg-pink-accent/90 active:scale-[0.98] text-white py-3.5 sm:py-4 rounded-xl shadow-md hover:shadow-lg transition-all duration-200 font-semibold text-center text-base sm:text-lg touch-manipulation"
+          >
+            {t('returnHome')}
+          </Link>
         </motion.div>
       </Modal>
     </section>

@@ -1,0 +1,366 @@
+/* Animated Background Component Styles */
+
+.animated-bg {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  z-index: -1;
+  overflow: hidden;
+  pointer-events: none;
+  background: #FFF8F5;
+}
+
+/* Blob Base Styles */
+.blob {
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(70px);
+  opacity: 0.6;
+  will-change: transform;
+  transform-style: preserve-3d;
+}
+
+/* Individual Blob Positioning and Colors */
+.blob-1 {
+  width: 400px;
+  height: 400px;
+  background: #FF9F70;
+  top: -10%;
+  right: 5%;
+  animation: floatBlob 12s ease-in-out infinite;
+  animation-delay: 0s;
+}
+
+@keyframes floatBlob2 {
+  0% {
+    transform: translateX(-50%) translateY(var(--parallax-offset, 0px)) translateX(0px);
+  }
+  50% {
+    transform: translateX(-50%) translateY(calc(var(--parallax-offset, 0px) + -20px)) translateX(10px);
+  }
+  100% {
+    transform: translateX(-50%) translateY(var(--parallax-offset, 0px)) translateX(0px);
+  }
+}
+
+.blob-2 {
+  width: 450px;
+  height: 450px;
+  background: #FF6E8A;
+  top: 5%;
+  left: 50%;
+  animation: floatBlob2 15s ease-in-out infinite;
+  animation-delay: 2s;
+}
+
+.blob-3 {
+  width: 350px;
+  height: 350px;
+  background: #FFC8A8;
+  bottom: 10%;
+  left: -5%;
+  animation: floatBlob 10s ease-in-out infinite;
+  animation-delay: 4s;
+}
+
+@keyframes floatBlob4 {
+  0% {
+    transform: translateY(calc(-50% + var(--parallax-offset, 0px))) translateX(0px);
+  }
+  50% {
+    transform: translateY(calc(-50% + var(--parallax-offset, 0px) + -20px)) translateX(10px);
+  }
+  100% {
+    transform: translateY(calc(-50% + var(--parallax-offset, 0px))) translateX(0px);
+  }
+}
+
+.blob-4 {
+  width: 380px;
+  height: 380px;
+  background: #E4B7FF;
+  top: 50%;
+  right: 10%;
+  animation: floatBlob4 18s ease-in-out infinite;
+  animation-delay: 1s;
+}
+
+.blob-5 {
+  width: 300px;
+  height: 300px;
+  background: #C0D8FF;
+  top: 15%;
+  left: 5%;
+  animation: floatBlob 14s ease-in-out infinite;
+  animation-delay: 3s;
+}
+
+/* Starburst Styles */
+.starburst {
+  position: absolute;
+  top: 30%;
+  left: 10%;
+  opacity: 0.85;
+  will-change: transform, opacity;
+  animation: glowPulse 4s ease-in-out infinite;
+  transform-style: preserve-3d;
+}
+
+/* Heart Styles */
+.heart {
+  position: absolute;
+  bottom: 15%;
+  right: 8%;
+  opacity: 0.85;
+  will-change: transform, opacity;
+  animation: glowPulse 3s ease-in-out infinite;
+  transform-style: preserve-3d;
+}
+
+/* Keyframe Animations */
+@keyframes floatBlob {
+  0% {
+    transform: translateY(var(--parallax-offset, 0px)) translateX(0px);
+  }
+  50% {
+    transform: translateY(calc(var(--parallax-offset, 0px) + -20px)) translateX(10px);
+  }
+  100% {
+    transform: translateY(var(--parallax-offset, 0px)) translateX(0px);
+  }
+}
+
+@keyframes glowPulse {
+  0% {
+    opacity: 0.85;
+  }
+  50% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0.85;
+  }
+}
+
+@keyframes colorShift {
+  0%,
+  100% {
+    filter: blur(70px) hue-rotate(0deg);
+  }
+  50% {
+    filter: blur(70px) hue-rotate(20deg);
+  }
+}
+
+/* Optional: Apply subtle color shift to some blobs */
+.blob-1,
+.blob-3 {
+  animation: floatBlob 12s ease-in-out infinite, colorShift 20s ease-in-out infinite;
+}
+
+.blob-2,
+.blob-4,
+.blob-5 {
+  animation: floatBlob 15s ease-in-out infinite;
+}
+
+/* Mobile Responsive Styles */
+@media (max-width: 768px) {
+  .blob {
+    filter: blur(50px);
+  }
+
+  .blob-1 {
+    width: 250px;
+    height: 250px;
+    top: -5%;
+    right: -5%;
+  }
+
+  .blob-2 {
+    width: 280px;
+    height: 280px;
+    top: 10%;
+    left: 45%;
+  }
+
+  .blob-3 {
+    width: 220px;
+    height: 220px;
+    bottom: 5%;
+    left: -8%;
+  }
+
+  .blob-4 {
+    width: 240px;
+    height: 240px;
+    top: 55%;
+    right: -5%;
+  }
+
+  .blob-5 {
+    width: 200px;
+    height: 200px;
+    top: 20%;
+    left: -5%;
+  }
+
+  .starburst {
+    width: 120px;
+    height: 120px;
+    top: 25%;
+    left: 5%;
+  }
+
+  .heart {
+    width: 80px;
+    height: 73px;
+    bottom: 10%;
+    right: 5%;
+  }
+}
+
+@media (max-width: 480px) {
+  .blob {
+    filter: blur(40px);
+    opacity: 0.4;
+  }
+
+  .blob-1,
+  .blob-2,
+  .blob-3,
+  .blob-4,
+  .blob-5 {
+    width: 180px;
+    height: 180px;
+  }
+
+  .starburst {
+    width: 100px;
+    height: 100px;
+  }
+
+  .heart {
+    width: 60px;
+    height: 55px;
+  }
+}
+
+/* Respect reduced motion preference */
+@media (prefers-reduced-motion: reduce) {
+  .blob,
+  .starburst,
+  .heart,
+  .floating-tool {
+    animation: none !important;
+  }
+
+  .blob-1,
+  .blob-3 {
+    animation: none !important;
+  }
+}
+
+/* Mobile adjustments for floating tools */
+@media (max-width: 768px) {
+  .floating-tool {
+    opacity: 0.4;
+    transform: scale(0.8);
+  }
+}
+
+@media (max-width: 480px) {
+  .floating-tool {
+    opacity: 0.3;
+    transform: scale(0.6);
+  }
+}
+
+/* Floating Tools Container */
+.floating-tools-container {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+/* Floating Tools Styles */
+.floating-tool {
+  position: absolute;
+  opacity: 0.6;
+  will-change: transform;
+  pointer-events: none;
+  filter: drop-shadow(0 4px 8px rgba(0, 0, 0, 0.1));
+  animation: floatTool 8s ease-in-out infinite;
+}
+
+.tool-nail-polish {
+  top: 20%;
+  left: 15%;
+  animation: floatTool 8s ease-in-out infinite, rotateTool 15s linear infinite;
+}
+
+.tool-nail-file {
+  top: 60%;
+  left: 75%;
+  animation: floatTool 10s ease-in-out infinite, rotateTool 20s linear infinite reverse;
+}
+
+.tool-brush {
+  top: 40%;
+  right: 20%;
+  animation: floatTool 12s ease-in-out infinite, rotateTool 18s linear infinite;
+}
+
+.tool-cuticle {
+  bottom: 30%;
+  left: 25%;
+  animation: floatTool 9s ease-in-out infinite, rotateTool 22s linear infinite reverse;
+}
+
+.tool-art-brush {
+  top: 70%;
+  left: 50%;
+  animation: floatTool 11s ease-in-out infinite, rotateTool 16s linear infinite;
+}
+
+.tool-nail-polish:nth-of-type(6) {
+  top: 15%;
+  right: 30%;
+  animation: floatTool 8s ease-in-out infinite, rotateTool 14s linear infinite reverse;
+}
+
+.tool-nail-file:nth-of-type(7) {
+  bottom: 25%;
+  right: 15%;
+  animation: floatTool 10s ease-in-out infinite, rotateTool 19s linear infinite;
+}
+
+@keyframes floatTool {
+  0%, 100% {
+    transform: translateY(calc(var(--parallax-offset-tool, 0px) + 0px)) translateX(0px) rotate(0deg);
+  }
+  25% {
+    transform: translateY(calc(var(--parallax-offset-tool, 0px) + -15px)) translateX(10px) rotate(5deg);
+  }
+  50% {
+    transform: translateY(calc(var(--parallax-offset-tool, 0px) + -25px)) translateX(-5px) rotate(-5deg);
+  }
+  75% {
+    transform: translateY(calc(var(--parallax-offset-tool, 0px) + -10px)) translateX(15px) rotate(3deg);
+  }
+}
+
+@keyframes rotateTool {
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
+}
+
+/* Parallax transforms applied via CSS variables */
+/* Note: Parallax is applied via inline styles in the component to combine with animations */
+

@@ -2,6 +2,7 @@ import { useForm } from 'react-hook-form';
 import { useNavigate } from 'react-router-dom';
 import useApi from '../hooks/useApi';
 import { motion } from 'framer-motion';
+import AnimatedBackground from '../components/AnimatedBackground';
 
 interface LoginData {
   username: string;
@@ -21,25 +22,26 @@ const AdminLogin = () => {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-soft-pink to-butter-yellow/50 p-4">
+    <div className="relative min-h-screen flex items-center justify-center p-4">
+      <AnimatedBackground />
       <motion.div 
         initial={{ scale: 0.9, opacity: 0 }}
         animate={{ scale: 1, opacity: 1 }}
         transition={{ duration: 0.5 }}
-        className="bg-white/90 backdrop-blur-md p-10 rounded-3xl shadow-2xl max-w-md w-full"
+        className="relative z-10 bg-white/90 backdrop-blur-md p-10 rounded-3xl shadow-2xl max-w-md w-full border border-white/20"
       >
-        <h1 className="text-3xl font-bold text-center mb-8 text-pink-accent">Admin Login</h1>
+        <h1 className="text-3xl font-bold text-center mb-8 text-pink-accent drop-shadow-sm">Admin Login</h1>
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
           <input 
             {...register('username')} 
             placeholder="Username" 
-            className="block w-full p-4 border border-baby-blue/50 rounded-xl focus:border-pink-accent outline-none bg-white/50"
+            className="block w-full p-4 border border-baby-blue/50 rounded-xl focus:border-pink-accent outline-none bg-white/80 backdrop-blur-sm font-medium"
           />
           <input 
             {...register('password')} 
             type="password" 
             placeholder="Password" 
-            className="block w-full p-4 border border-baby-blue/50 rounded-xl focus:border-pink-accent outline-none bg-white/50"
+            className="block w-full p-4 border border-baby-blue/50 rounded-xl focus:border-pink-accent outline-none bg-white/80 backdrop-blur-sm font-medium"
           />
           <button 
             type="submit" 
