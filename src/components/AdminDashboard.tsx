@@ -263,6 +263,7 @@ const AdminDashboard = () => {
     blockedSlots: { id: string; start_time: string; end_time: string; reason?: string }[];
   } | null>(null);
   const [loadingDateDetails, setLoadingDateDetails] = useState<boolean>(false);
+  const [settingAvailability, setSettingAvailability] = useState<boolean>(false);
   const [selectedBookingAddOns, setSelectedBookingAddOns] = useState<Service[]>([]);
   const [analyticsTimeRange, setAnalyticsTimeRange] = useState<'week' | 'month' | 'quarter' | 'year'>('month');
   const [revenueChartType, setRevenueChartType] = useState<'daily' | 'weekly'>('weekly');
@@ -529,6 +530,8 @@ const AdminDashboard = () => {
       return;
     }
     
+    setSettingAvailability(true);
+    
     Promise.all(
       days.map(day =>
         api.post('/api/availability', {
@@ -556,6 +559,9 @@ const AdminDashboard = () => {
         if (import.meta.env.DEV) {
           console.error('Error setting availability:', err);
         }
+      })
+      .finally(() => {
+        setSettingAvailability(false);
       });
   };
 
@@ -774,6 +780,8 @@ const AdminDashboard = () => {
       return;
     }
     
+    setSettingAvailability(true);
+    
     api.post('/api/availability', {
       day: format(editDate, 'yyyy-MM-dd'),
       start_time: data.start_time,
@@ -800,23 +808,28 @@ const AdminDashboard = () => {
         if (import.meta.env.DEV) {
           console.error('Error updating availability:', err);
         }
+      })
+      .finally(() => {
+        setSettingAvailability(false);
       });
   };
 
   // Handler for blocking time on a single day
   const onBlockSingleDay = (data: BlockTimeFormData) => {
     if (!editDate) return;
+    setError(null);
+    
+    if (!data.start_time || !data.end_time) {
+      setError('Please provide both start time and end time');
+      return;
+    }
+    
+    setSettingAvailability(true);
     
     const payload = {
       ...data,
       day: format(editDate, 'yyyy-MM-dd'),
     };
-    
-    // Validate required fields on frontend
-    if (!payload.start_time || !payload.end_time || !payload.day) {
-      setError('Please fill in all required fields (start time and end time)');
-      return;
-    }
     
     api.post('/api/availability/block', payload)
       .then(() => {
@@ -836,6 +849,9 @@ const AdminDashboard = () => {
         if (import.meta.env.DEV) {
           console.error('Error blocking time:', err);
         }
+      })
+      .finally(() => {
+        setSettingAvailability(false);
       });
   };
 
@@ -3817,12 +3833,22 @@ const AdminDashboard = () => {
                     </button>
                     <button 
                       type="submit" 
-                      className="flex-1 bg-baby-blue text-white px-6 py-3 rounded-xl font-medium hover:bg-baby-blue/80 transition flex items-center justify-center gap-2"
+                      disabled={settingAvailability}
+                      className="flex-1 bg-baby-blue text-white px-6 py-3 rounded-xl font-medium hover:bg-baby-blue/80 transition flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
                     >
-                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                      </svg>
-                      Update Hours
+                      {settingAvailability ? (
+                        <>
+                          <div className="animate-spin rounded-full h-4 w-4 border-t-2 border-b-2 border-white"></div>
+                          <span>Updating...</span>
+                        </>
+                      ) : (
+                        <>
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                          </svg>
+                          Update Hours
+                        </>
+                      )}
                     </button>
                   </div>
                 </form>
@@ -3881,12 +3907,22 @@ const AdminDashboard = () => {
                     </button>
                     <button 
                       type="submit" 
-                      className="flex-1 bg-red-500 text-white px-6 py-3 rounded-xl font-medium hover:bg-red-600 transition flex items-center justify-center gap-2"
+                      disabled={settingAvailability}
+                      className="flex-1 bg-red-500 text-white px-6 py-3 rounded-xl font-medium hover:bg-red-600 transition flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
                     >
-                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728L5.636 5.636m12.728 12.728L5.636 5.636" />
-                      </svg>
-                      Block Time
+                      {settingAvailability ? (
+                        <>
+                          <div className="animate-spin rounded-full h-4 w-4 border-t-2 border-b-2 border-white"></div>
+                          <span>Blocking...</span>
+                        </>
+                      ) : (
+                        <>
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728L5.636 5.636m12.728 12.728L5.636 5.636" />
+                          </svg>
+                          Block Time
+                        </>
+                      )}
                     </button>
                   </div>
                 </form>
@@ -4068,12 +4104,22 @@ const AdminDashboard = () => {
                 </button>
                 <button 
                   type="submit" 
-                  className="flex-1 bg-green-500 text-white px-6 py-3 rounded-xl font-medium hover:bg-green-600 transition flex items-center justify-center gap-2"
+                  disabled={settingAvailability}
+                  className="flex-1 bg-green-500 text-white px-6 py-3 rounded-xl font-medium hover:bg-green-600 transition flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                  </svg>
-                  Set Hours
+                  {settingAvailability ? (
+                    <>
+                      <div className="animate-spin rounded-full h-4 w-4 border-t-2 border-b-2 border-white"></div>
+                      <span>Setting...</span>
+                    </>
+                  ) : (
+                    <>
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                      </svg>
+                      Set Hours
+                    </>
+                  )}
                 </button>
               </div>
             </form>

@@ -38,6 +38,11 @@ function AppContent() {
           </Link>
         </>
       )}
+      {isAdminRoute && (
+        <>
+          <StickyHeader isMenuOpen={isMenuOpen} setIsMenuOpen={setIsMenuOpen} />
+        </>
+      )}
       <Routes>
         <Route path="/admin/dashboard" element={<AdminDashboard />} />
         <Route path="/admin/login" element={<AdminLogin />} />
