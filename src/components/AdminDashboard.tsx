@@ -1,244 +1,36 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import useApi from '../hooks/useApi';
 import Modal from './Modal';
 import { useForm } from 'react-hook-form';
 import Calendar from 'react-calendar';
 import 'react-calendar/dist/Calendar.css';
 import { format, addMonths } from 'date-fns';
 import { motion } from 'framer-motion';
-import { FaChartBar, FaCalendarAlt, FaList, FaCog, FaEye, FaUsers } from 'react-icons/fa';
-import { FiMenu, FiX } from 'react-icons/fi';
 import AnimatedBackground from './AnimatedBackground';
 
-const tabs = [
-  { name: 'Overview', icon: FaEye },
-  { name: 'Manage Services', icon: FaCog },
-  { name: 'Availability', icon: FaCalendarAlt },
-  { name: 'Bookings', icon: FaList },
-  { name: 'Clients', icon: FaUsers },
-  { name: 'Analytics', icon: FaChartBar },
-];
-
-const formatDuration = (min: number) => {
-  const hours = Math.floor(min / 60);
-  const minutes = min % 60;
-  return `${hours > 0 ? `${hours} hour${hours > 1 ? 's' : ''}` : ''} ${minutes > 0 ? `${minutes} min` : ''}`.trim();
-};
-
-// Format currency as '₪ 2,080'
-const formatCurrency = (amount: number) => {
-  if (typeof amount !== 'number' || isNaN(amount)) return '';
-  return `₪ ${amount.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`;
-};
-
-// Helper function to format price (handles ranges like "10-80")
-const formatPrice = (price: number | string): string => {
-  if (typeof price === 'string' && price.includes('-')) {
-    // Format as "10 - 80 ₪"
-    const parts = price.split('-').map(p => p.trim());
-    return `₪ ${parts.join(' - ')}`;
-  }
-  return formatCurrency(Number(price));
-};
-
-// Helper function to get numeric price for calculations (handles ranges by using minimum)
-const getNumericPrice = (price: number | string | undefined | null): number => {
-  if (price === undefined || price === null) return 0;
-  if (typeof price === 'string' && price.includes('-')) {
-    const parts = price.split('-').map(p => p.trim());
-    const min = Number(parts[0]);
-    return isNaN(min) ? 0 : min;
-  }
-  const numPrice = Number(price);
-  return isNaN(numPrice) ? 0 : numPrice;
-};
-
-interface Booking {
-  id: string;
-  booking_reference?: string; // Human-readable booking reference (BBS{month/year}{number})
-  service_id: string;
-  date: string;
-  time: string;
-  client_name: string;
-  client_email: string;
-  client_phone: string;
-  service_name?: string;
-  token: string;
-  price?: number;
-  google_event_id?: string;
-  language?: string;
-  created_at?: string;
-  service_duration?: number;
-  addons?: Array<{
-    name: string;
-    price: number;
-    duration?: number;
-  }>;
-  custom_request?: string;
-  custom_image?: string;
-  status?: 'active' | 'cancelled';
-  cancelled_at?: string;
-}
-interface ClientSummary {
-  phone: string;
-  name: string;
-  email: string;
-  totalBookings: number;
-  totalSpent: number;
-  lastVisit?: string;
-  firstVisit?: string;
-  averageBookingValue: number;
-  activeBookings: number;
-  cancelledBookings: number;
-}
-interface Client {
-  phone: string;
-  name: string;
-  email: string;
-  totalBookings: number;
-  totalSpent: number;
-  lastVisit?: string;
-  firstVisit?: string;
-  averageBookingValue: number;
-  bookings: Booking[];
-}
-interface Service {
-  id: string;
-  name: string;
-  name_en?: string;
-  name_he?: string;
-  description_en?: string;
-  description_he?: string;
-  duration: number;
-  price: number | string; // Can be a number or a range string like "10-80"
-  is_addon: boolean;
-  category?: string;
-  is_active?: boolean;
-}
-interface Analytics {
-  mostBooked: string;
-  revenueEstimate: number;
-  vipClients: Array<{
-    name: string;
-    visits: number;
-    totalSpent: number;
-    lastVisit: string;
-  }>;
-  
-  // Enhanced analytics data
-  totalRevenue: number;
-  revenueGrowth: number;
-  totalBookings: number;
-  bookingGrowth: number;
-  totalClients: number;
-  newClientsGrowth: number;
-  avgBookingValue: number;
-  
-  revenueChart: Array<{ label: string; value: number }>;
-  serviceStats: Array<{ name: string; bookings: number; revenue: number; percentage: number }>;
-  peakHours: Array<{ time: string; bookings: number; percentage: number }>;
-  
-  repeatCustomerRate: number;
-  newClientsThisPeriod: number;
-  avgVisitsPerClient: number;
-  clientRetentionRate: number;
-  
-  avgBookingsPerDay: number;
-  busiestDay: string;
-  cancellationRate: number;
-  noShowRate: number;
-  
-  addonStats: Array<{ name: string; bookings: number; revenue: number; popularityRate: number; avgPerBooking: number }>;
-  
-  monthlyGoalProgress: number;
-  currentMonthRevenue: number;
-  monthlyGoal: number;
-  bookingGoalProgress: number;
-  currentMonthBookings: number;
-  monthlyBookingGoal: number;
-  satisfactionScore: number;
-  totalReviews: number;
-}
-type ServiceFormData = { 
-  name: string; 
-  name_en?: string;
-  name_he?: string;
-  description_en?: string;
-  description_he?: string;
-  duration: number; 
-  price: number | string; 
-  is_addon: boolean;
-  category?: string;
-  is_active?: boolean;
-};
-type BlockTimeFormData = { start_time: string; end_time: string; reason: string };
-type OpenHoursFormData = { start_time: string; end_time: string };
-type BookingFormData = { service_id: string; date: string; time: string; client_name: string; client_email: string; client_phone: string; language: string };
+// Import extracted modules
+import type { Booking, Service, ClientSummary, Client, ServiceFormData, BlockTimeFormData, OpenHoursFormData, BookingFormData } from './admin/types';
+import { formatDuration, formatCurrency, formatPrice, getNumericPrice } from './admin/utils';
+import { Sidebar } from './admin/Sidebar';
+import { useAdminData } from './admin/useAdminData';
+import { OverviewTab, ManageServicesTab, AvailabilityTab, BookingsTab, ClientsTab, AnalyticsTab } from './admin/tabs';
 
 const AdminDashboard = () => {
   const navigate = useNavigate();
-  const api = useApi(true);
   const { register, handleSubmit, reset } = useForm<ServiceFormData & BlockTimeFormData & OpenHoursFormData & BookingFormData>();
   const [token, setToken] = useState<string | null>(localStorage.getItem('token'));
   const [activeTab, setActiveTab] = useState<string>('Overview');
   const [isMenuOpen, setIsMenuOpen] = useState<boolean>(false);
   const [isAddingAddon, setIsAddingAddon] = useState<boolean>(false);
-  const [bookings, setBookings] = useState<Booking[]>([]);
-  const [services, setServices] = useState<Service[]>([]);
-  const [mainServices, setMainServices] = useState<Service[]>([]);
-  const [addOns, setAddOns] = useState<Service[]>([]);
-  const [analytics, setAnalytics] = useState<Analytics>({ 
-    mostBooked: '', 
-    revenueEstimate: 0, 
-    vipClients: [],
-    totalRevenue: 0,
-    revenueGrowth: 0,
-    totalBookings: 0,
-    bookingGrowth: 0,
-    totalClients: 0,
-    newClientsGrowth: 0,
-    avgBookingValue: 0,
-    revenueChart: [],
-    serviceStats: [],
-    peakHours: [],
-    repeatCustomerRate: 0,
-    newClientsThisPeriod: 0,
-    avgVisitsPerClient: 0,
-    clientRetentionRate: 0,
-    avgBookingsPerDay: 0,
-    busiestDay: '',
-    cancellationRate: 0,
-    noShowRate: 0,
-    addonStats: [],
-    monthlyGoalProgress: 0,
-    currentMonthRevenue: 0,
-    monthlyGoal: 0,
-    bookingGoalProgress: 0,
-    currentMonthBookings: 0,
-    monthlyBookingGoal: 0,
-    satisfactionScore: 0,
-    totalReviews: 0
-  });
+  const [isLoggedIn, setIsLoggedIn] = useState<boolean>(!!token);
   const [showModal, setShowModal] = useState<boolean>(false);
   const [showSuccess, setShowSuccess] = useState<string | null>(null);
-  const [availableDays, setAvailableDays] = useState<string[]>([]);
   // Track calendar's active month/year for admin calendar
   const [calendarDate, setCalendarDate] = useState<Date>(new Date());
   const [modalType, setModalType] = useState<string>('');
   const [selectedDays, setSelectedDays] = useState<Date[]>([]);
   const [editDate, setEditDate] = useState<Date | null>(null);
   const [editTimes, setEditTimes] = useState<{ start_time: string; end_time: string } | null>(null);
-  const [loading, setLoading] = useState<boolean>(true);
-  const [error, setError] = useState<string | null>(null);
-  const [isLoggedIn, setIsLoggedIn] = useState<boolean>(!!token);
-
-  // Redirect to login if no token
-  useEffect(() => {
-    if (!token) {
-      navigate('/admin/login');
-    }
-  }, [token, navigate]);
   const [editingService, setEditingService] = useState<Service | null>(null);
   const [editingBooking, setEditingBooking] = useState<Booking | null>(null);
   const [searchTerm, setSearchTerm] = useState<string>('');
@@ -266,10 +58,8 @@ const AdminDashboard = () => {
   const [selectedBookingAddOns, setSelectedBookingAddOns] = useState<Service[]>([]);
   const [analyticsTimeRange, setAnalyticsTimeRange] = useState<'week' | 'month' | 'quarter' | 'year'>('month');
   const [revenueChartType, setRevenueChartType] = useState<'daily' | 'weekly'>('weekly');
-  const [clients, setClients] = useState<ClientSummary[]>([]);
   const [selectedClient, setSelectedClient] = useState<Client | null>(null);
   const [clientSearchTerm, setClientSearchTerm] = useState<string>('');
-  const [loadingClients, setLoadingClients] = useState<boolean>(false);
   const [showAddClientModal, setShowAddClientModal] = useState<boolean>(false);
   const [showClientDetailsModal, setShowClientDetailsModal] = useState<boolean>(false);
   const [isEditingClient, setIsEditingClient] = useState<boolean>(false);
@@ -287,6 +77,30 @@ const AdminDashboard = () => {
 
   // State for editing performance goals
   const [editingGoals, setEditingGoals] = useState(false);
+  
+  // Use the extracted hook for data management
+  const {
+    bookings,
+    setBookings,
+    services,
+    setServices,
+    mainServices,
+    setMainServices,
+    addOns,
+    setAddOns,
+    analytics,
+    setAnalytics,
+    availableDays,
+    setAvailableDays,
+    clients,
+    setClients,
+    loading,
+    error,
+    setError,
+    loadingClients,
+    api
+  } = useAdminData({ isLoggedIn, token, activeTab, analyticsTimeRange });
+
   const [goalInputs, setGoalInputs] = useState({
     monthlyGoal: analytics.monthlyGoal,
     monthlyBookingGoal: analytics.monthlyBookingGoal
@@ -294,12 +108,21 @@ const AdminDashboard = () => {
   // State for selected month and year for goals
   const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth());
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
+
+  // Redirect to login if no token
+  useEffect(() => {
+    if (!token) {
+      navigate('/admin/login');
+    }
+  }, [token, navigate]);
+
   useEffect(() => {
     setGoalInputs({
       monthlyGoal: analytics.monthlyGoal,
       monthlyBookingGoal: analytics.monthlyBookingGoal
     });
   }, [analytics.monthlyGoal, analytics.monthlyBookingGoal]);
+
   // Save updated goals to backend
   const handleSaveGoals = () => {
     api.post('/api/analytics/goals', {
@@ -315,23 +138,6 @@ const AdminDashboard = () => {
       .catch((err) => setError(err.message));
   };
 
-  // Fetch clients when Clients tab is active
-  useEffect(() => {
-    if (isLoggedIn && token && activeTab === 'Clients') {
-      setLoadingClients(true);
-      api.get('/api/clients')
-        .then((clientsData: ClientSummary[]) => {
-          setClients(clientsData);
-          setLoadingClients(false);
-        })
-        .catch((err) => {
-          if (import.meta.env.DEV) console.error('Error fetching clients:', err);
-          setError(err.message);
-          setLoadingClients(false);
-        });
-    }
-  }, [isLoggedIn, token, activeTab]);
-
   // Fetch client details when a client is selected
   useEffect(() => {
     if (selectedClient?.phone && isLoggedIn && token) {
@@ -344,174 +150,7 @@ const AdminDashboard = () => {
           setError(err.message);
         });
     }
-  }, [selectedClient?.phone, isLoggedIn, token]);
-
-  // Fetch analytics when time range changes
-  useEffect(() => {
-    if (isLoggedIn && token && activeTab === 'Analytics') {
-      api.get(`/api/analytics?range=${analyticsTimeRange}`)
-        .then((analyticsData: any) => {
-          const toNum = (v: any, fallback = 0) => {
-            const n = typeof v === 'number' ? v : parseFloat(v);
-            return isNaN(n) ? fallback : n;
-          };
-          const sanitizeStats = (arr: any[], fields: string[]) =>
-            Array.isArray(arr)
-              ? arr.map(obj => {
-                  const newObj: any = { ...obj };
-                  fields.forEach(f => { newObj[f] = toNum(obj[f]); });
-                  return newObj;
-                })
-              : [];
-          
-          const mergedAnalytics = {
-            ...analytics,
-            mostBooked: analyticsData?.mostBooked || '',
-            vipClients: Array.isArray(analyticsData?.vipClients) ? analyticsData.vipClients : [],
-            revenueGrowth: toNum(analyticsData?.revenueGrowth),
-            totalBookings: toNum(analyticsData?.totalBookings),
-            bookingGrowth: toNum(analyticsData?.bookingGrowth),
-            totalClients: toNum(analyticsData?.totalClients),
-            newClientsGrowth: toNum(analyticsData?.newClientsGrowth),
-            avgBookingValue: toNum(analyticsData?.avgBookingValue),
-            revenueChart: Array.isArray(analyticsData?.revenueChart)
-              ? analyticsData.revenueChart.map((item: any) => ({
-                  label: item.label,
-                  value: toNum(item.value)
-                }))
-              : [],
-            serviceStats: sanitizeStats(analyticsData?.serviceStats, ['bookings', 'revenue', 'percentage']),
-            peakHours: sanitizeStats(analyticsData?.peakHours, ['bookings', 'percentage']),
-            repeatCustomerRate: toNum(analyticsData?.repeatCustomerRate),
-            newClientsThisPeriod: toNum(analyticsData?.newClientsThisPeriod),
-            avgVisitsPerClient: toNum(analyticsData?.avgVisitsPerClient),
-            clientRetentionRate: toNum(analyticsData?.clientRetentionRate),
-            avgBookingsPerDay: toNum(analyticsData?.avgBookingsPerDay),
-            busiestDay: analyticsData?.busiestDay || '',
-            cancellationRate: toNum(analyticsData?.cancellationRate),
-            noShowRate: toNum(analyticsData?.noShowRate),
-            addonStats: sanitizeStats(analyticsData?.addonStats, ['bookings', 'revenue', 'popularityRate', 'avgPerBooking']),
-            monthlyGoalProgress: toNum(analyticsData?.monthlyGoalProgress),
-            currentMonthRevenue: toNum(analyticsData?.currentMonthRevenue),
-            monthlyGoal: toNum(analyticsData?.monthlyGoal),
-            bookingGoalProgress: toNum(analyticsData?.bookingGoalProgress),
-            currentMonthBookings: toNum(analyticsData?.currentMonthBookings),
-            monthlyBookingGoal: toNum(analyticsData?.monthlyBookingGoal),
-            satisfactionScore: toNum(analyticsData?.satisfactionScore),
-            totalReviews: toNum(analyticsData?.totalReviews),
-            revenueEstimate: toNum(analyticsData?.revenueEstimate),
-            totalRevenue: toNum(analyticsData?.totalRevenue)
-          };
-          setAnalytics(mergedAnalytics);
-        })
-        .catch((err: any) => {
-          if (import.meta.env.DEV) console.error('Analytics fetch failed:', err);
-        });
-    }
-  }, [analyticsTimeRange, activeTab, isLoggedIn, token]);
-
-  useEffect(() => {
-    if (isLoggedIn && token) {
-      setLoading(true);
-      setError(null);
-      Promise.all([
-        api.get('/api/bookings').then(data => data).catch(err => { if (import.meta.env.DEV) console.error('Bookings error:', err); setError(err.message); }),
-        api.get('/api/services').then(data => data).catch(err => { if (import.meta.env.DEV) console.error('Services error:', err); setError(err.message); }),
-        api.get(`/api/analytics?range=${analyticsTimeRange}`).then(data => data).catch(err => {
-          if (import.meta.env.DEV) console.error('Analytics fetch failed:', err);
-          return { mostBooked: '', revenueEstimate: 0, vipClients: [] }; // Default fallback
-        }),
-        api.get('/api/availability/dates').then(data => data).catch(err => { if (import.meta.env.DEV) console.error('Availability error:', err); setError(err.message); }),
-      ])
-        .then(([bookingsData, servicesData, analyticsData, availabilityData]) => {
-          setBookings(bookingsData || []);
-          setServices(servicesData || []);
-          
-          // Separate main services and add-ons
-          const allServices = servicesData || [];
-          setMainServices(allServices.filter((s: Service) => !s.is_addon));
-          setAddOns(allServices.filter((s: Service) => s.is_addon));
-          
-          // Calculate revenue estimate from all bookings
-          const totalRevenue = (bookingsData || []).reduce((sum: number, b: any) => sum + (Number(b.price) || 0), 0);
-          
-          // Merge analytics data with calculated revenue
-          // Helper to coerce a value to number or fallback
-          const toNum = (v: any, fallback = 0) => {
-            const n = typeof v === 'number' ? v : parseFloat(v);
-            return isNaN(n) ? fallback : n;
-          };
-          // Helper to sanitize array of objects with numeric fields
-          const sanitizeStats = (arr: any[], fields: string[]) =>
-            Array.isArray(arr)
-              ? arr.map(obj => {
-                  const newObj: any = { ...obj };
-                  fields.forEach(f => { newObj[f] = toNum(obj[f]); });
-                  return newObj;
-                })
-              : [];
-
-          const mergedAnalytics = {
-            mostBooked: analyticsData?.mostBooked || '',
-            vipClients: Array.isArray(analyticsData?.vipClients) ? analyticsData.vipClients : [],
-            revenueGrowth: toNum(analyticsData?.revenueGrowth),
-            totalBookings: toNum(analyticsData?.totalBookings),
-            bookingGrowth: toNum(analyticsData?.bookingGrowth),
-            totalClients: toNum(analyticsData?.totalClients),
-            newClientsGrowth: toNum(analyticsData?.newClientsGrowth),
-            avgBookingValue: toNum(analyticsData?.avgBookingValue),
-            revenueChart: Array.isArray(analyticsData?.revenueChart)
-              ? analyticsData.revenueChart.map((item: any) => ({
-                  label: item.label,
-                  value: toNum(item.value)
-                }))
-              : [],
-            serviceStats: sanitizeStats(analyticsData?.serviceStats, ['bookings', 'revenue', 'percentage']),
-            peakHours: sanitizeStats(analyticsData?.peakHours, ['bookings', 'percentage']),
-            repeatCustomerRate: toNum(analyticsData?.repeatCustomerRate),
-            newClientsThisPeriod: toNum(analyticsData?.newClientsThisPeriod),
-            avgVisitsPerClient: toNum(analyticsData?.avgVisitsPerClient),
-            clientRetentionRate: toNum(analyticsData?.clientRetentionRate),
-            avgBookingsPerDay: toNum(analyticsData?.avgBookingsPerDay),
-            busiestDay: analyticsData?.busiestDay || '',
-            cancellationRate: toNum(analyticsData?.cancellationRate),
-            noShowRate: toNum(analyticsData?.noShowRate),
-            addonStats: sanitizeStats(analyticsData?.addonStats, ['bookings', 'revenue', 'popularityRate', 'avgPerBooking']),
-            monthlyGoalProgress: toNum(analyticsData?.monthlyGoalProgress),
-            currentMonthRevenue: toNum(analyticsData?.currentMonthRevenue),
-            monthlyGoal: toNum(analyticsData?.monthlyGoal),
-            bookingGoalProgress: toNum(analyticsData?.bookingGoalProgress),
-            currentMonthBookings: toNum(analyticsData?.currentMonthBookings),
-            monthlyBookingGoal: toNum(analyticsData?.monthlyBookingGoal),
-            satisfactionScore: toNum(analyticsData?.satisfactionScore),
-            totalReviews: toNum(analyticsData?.totalReviews),
-            // Ensure revenue values use API data if available, otherwise fallback to calculated
-            revenueEstimate: toNum(analyticsData?.revenueEstimate, totalRevenue),
-            totalRevenue: toNum(analyticsData?.totalRevenue, totalRevenue)
-          };
-
-          setAnalytics(mergedAnalytics);
-          // Only keep today and future dates
-          const today = new Date();
-          today.setHours(0,0,0,0);
-          const available = (availabilityData?.availableDates || []).filter((dateStr: string) => {
-            const dateObj = new Date(dateStr);
-            dateObj.setHours(0,0,0,0);
-            return dateObj >= today;
-          });
-          setAvailableDays(available);
-        })
-        .catch(err => {
-          if (import.meta.env.DEV) console.error('AdminDashboard: Promise.all error', err);
-          setError(err.message);
-        })
-        .finally(() => {
-          setLoading(false);
-        });
-    }
-    // Only run once on mount or when login state changes
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isLoggedIn, token]);
+  }, [selectedClient?.phone, isLoggedIn, token, api]);
 
   const handleLogout = () => {
     localStorage.removeItem('token');
@@ -1060,71 +699,13 @@ const AdminDashboard = () => {
       }}
     >
       <AnimatedBackground />
-      {/* Mobile menu button */}
-      <button 
-        className="md:hidden p-2.5 bg-white/95 backdrop-blur-md text-pink-accent fixed top-2 left-2 z-50 rounded-full shadow-lg border border-white/20"
-        onClick={() => {
-          // #region agent log
-          fetch('http://127.0.0.1:7242/ingest/e7494785-1fe6-47f3-8df4-c77793040f40',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'AdminDashboard.tsx:1011',message:'Menu button clicked',data:{currentState:isMenuOpen,newState:!isMenuOpen},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
-          // #endregion
-          setIsMenuOpen(!isMenuOpen);
-        }}
-        aria-label="Open menu"
-      >
-        {isMenuOpen ? <FiX size={18} /> : <FiMenu size={18} />}
-      </button>
-      {/* Mobile overlay */}
-      {isMenuOpen && (
-        <div 
-          className="md:hidden fixed inset-0 bg-black/50 z-30"
-          onClick={() => setIsMenuOpen(false)}
-        />
-      )}
-      {/* Sidebar navigation */}
-      <nav
-        className={`
-          relative z-40 bg-white/95 backdrop-blur-md p-3 sm:p-4 md:p-6 shadow-soft flex flex-col
-          w-72 max-w-[80vw] h-screen fixed top-0 left-0 transition-transform duration-300 ease-in-out
-          md:static md:w-1/5 md:h-screen md:block md:translate-x-0
-          ${isMenuOpen ? 'translate-x-0' : '-translate-x-full'}
-          md:translate-x-0 border-r border-white/20 overflow-y-auto
-        `}
-        ref={(el) => {
-          // #region agent log
-          if (el) {
-            const rect = el.getBoundingClientRect();
-            const styles = window.getComputedStyle(el);
-            fetch('http://127.0.0.1:7242/ingest/e7494785-1fe6-47f3-8df4-c77793040f40',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'AdminDashboard.tsx:1024',message:'Sidebar element dimensions',data:{width:rect.width,height:rect.height,top:rect.top,left:rect.left,zIndex:styles.zIndex,transform:styles.transform,display:styles.display,position:styles.position,isMenuOpen},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
-          }
-          // #endregion
-        }}
-      >
-        <h2 className="text-base sm:text-lg md:text-2xl font-bold text-pink-accent mb-4 sm:mb-6 md:mb-8 pt-12 md:pt-0">Admin Dashboard</h2>
-        <ul className="space-y-1.5 sm:space-y-2 md:space-y-4 flex-grow">
-          {tabs.map((tab) => (
-            <li key={tab.name}>
-              <button 
-                onClick={() => {
-                  setActiveTab(tab.name);
-                  setIsMenuOpen(false);
-                }} 
-                className={`w-full flex items-center py-2 sm:py-2.5 md:py-3 px-2 sm:px-3 md:px-4 rounded-lg transition ${
-                  activeTab === tab.name ? 'bg-pink-accent text-white' : 'hover:bg-pink-accent/10'
-                }`}
-              >
-                <tab.icon className="mr-2 sm:mr-2.5 md:mr-3 text-base sm:text-lg md:text-xl flex-shrink-0" size={18} />
-                <span className="text-xs sm:text-sm md:text-base">{tab.name}</span>
-              </button>
-            </li>
-          ))}
-        </ul>
-        <button 
-          onClick={handleLogout}
-          className="w-full mt-4 sm:mt-6 md:mt-8 bg-pink-accent/80 text-white px-3 sm:px-4 md:px-6 py-2 sm:py-2.5 md:py-3 rounded-full shadow-soft hover:bg-pink-accent transition text-xs sm:text-sm md:text-base"
-        >
-          Logout
-        </button>
-      </nav>
+      <Sidebar
+        activeTab={activeTab}
+        isMenuOpen={isMenuOpen}
+        onTabChange={setActiveTab}
+        onMenuToggle={() => setIsMenuOpen(!isMenuOpen)}
+        onLogout={handleLogout}
+      />
       {/* Main content area */}
       <main 
         className="relative z-10 flex-1 p-2 sm:p-3 md:p-4 lg:p-6 xl:p-8 overflow-x-hidden overflow-y-auto w-full min-h-screen md:min-h-screen pt-12 md:pt-0"
@@ -1155,18 +736,32 @@ const AdminDashboard = () => {
           }}
         >
           {activeTab === 'Overview' && (
-            <div 
-              className="space-y-6 sm:space-y-8"
-              ref={(el) => {
-                // #region agent log
-                if (el) {
-                  const rect = el.getBoundingClientRect();
-                  const hasChildren = el.children.length > 0;
-                  fetch('http://127.0.0.1:7242/ingest/e7494785-1fe6-47f3-8df4-c77793040f40',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'AdminDashboard.tsx:1069',message:'Overview tab content rendered',data:{width:rect.width,height:rect.height,top:rect.top,left:rect.left,hasChildren,childCount:el.children.length,isVisible:rect.width>0&&rect.height>0},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'})}).catch(()=>{});
-                }
-                // #endregion
-              }}
-            >
+            <OverviewTab
+              bookings={bookings}
+              mainServices={mainServices}
+              addOns={addOns}
+              analytics={analytics}
+              onTabChange={setActiveTab}
+            />
+          )}
+          {activeTab === 'Manage Services' && (
+            <ManageServicesTab />
+          )}
+          {activeTab === 'Availability' && (
+            <AvailabilityTab />
+          )}
+          {activeTab === 'Bookings' && (
+            <BookingsTab />
+          )}
+          {activeTab === 'Clients' && (
+            <ClientsTab />
+          )}
+          {activeTab === 'Analytics' && (
+            <AnalyticsTab />
+          )}
+          {/* Keep the old code below for reference - will be removed after full extraction */}
+          {false && activeTab === 'Overview' && (
+            <div className="space-y-6 sm:space-y-8">
               {/* Header */}
               <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 sm:gap-4">
                 <div>
