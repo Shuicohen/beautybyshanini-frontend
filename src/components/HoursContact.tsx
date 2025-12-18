@@ -1,6 +1,5 @@
 import { FaClock, FaMapMarkerAlt, FaWhatsapp } from 'react-icons/fa';
 import { useLanguage } from '../contexts/LanguageContext';
-import { motion } from 'framer-motion';
 
 const HoursContact = () => {
   const { t } = useLanguage();

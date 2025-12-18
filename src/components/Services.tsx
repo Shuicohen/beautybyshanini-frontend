@@ -133,7 +133,7 @@ const Services = () => {
             </div>
             
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 lg:gap-8">
-              {addOns.map((addon, index) => (
+              {addOns.map((addon) => (
                 <div
                   key={addon.id}
                   className="bg-gradient-to-br from-white/80 to-gray-50/80 relative p-5 sm:p-6 lg:p-8 rounded-xl sm:rounded-2xl shadow-md border border-gray-200/60 text-center transition-shadow duration-200 active:shadow-lg active:scale-[0.98] h-full min-h-[220px] sm:min-h-[240px] flex flex-col items-center justify-between touch-manipulation"
