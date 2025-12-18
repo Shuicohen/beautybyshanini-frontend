@@ -1003,26 +1003,32 @@ const AdminDashboard = () => {
   if (error) return <div className="flex justify-center items-center h-screen text-red-500">Error: {error}. <button onClick={() => window.location.reload()} className="ml-2 text-pink-accent underline">Retry</button></div>;
 
   return (
-    <div className="relative min-h-screen flex flex-col md:flex-row">
+    <div className="relative min-h-screen flex flex-col md:flex-row overflow-hidden">
       <AnimatedBackground />
       {/* Mobile menu button */}
       <button 
-        className="md:hidden p-4 bg-white/80 text-pink-accent fixed top-4 left-4 z-50 rounded-full shadow-lg"
+        className="md:hidden p-3 bg-white/90 backdrop-blur-md text-pink-accent fixed top-3 left-3 z-50 rounded-full shadow-lg border border-white/20"
         onClick={() => setIsMenuOpen(!isMenuOpen)}
         aria-label="Open menu"
       >
-        {isMenuOpen ? <FiX size={24} /> : <FiMenu size={24} />}
+        {isMenuOpen ? <FiX size={20} /> : <FiMenu size={20} />}
       </button>
+      {/* Mobile overlay */}
+      {isMenuOpen && (
+        <div 
+          className="md:hidden fixed inset-0 bg-black/50 z-30"
+          onClick={() => setIsMenuOpen(false)}
+        />
+      )}
       {/* Sidebar navigation */}
       <nav
         className={`
-          relative z-10 bg-white/90 backdrop-blur-md p-4 sm:p-6 shadow-soft flex flex-col z-40
-          w-full h-screen fixed top-0 left-0 transition-transform duration-300
+          relative z-40 bg-white/95 backdrop-blur-md p-4 sm:p-6 shadow-soft flex flex-col
+          w-80 max-w-[85vw] h-screen fixed top-0 left-0 transition-transform duration-300 ease-in-out
           md:static md:w-1/5 md:h-auto md:block md:translate-x-0
           ${isMenuOpen ? 'translate-x-0' : '-translate-x-full'}
-          md:translate-x-0 border-r border-white/20
+          md:translate-x-0 border-r border-white/20 overflow-y-auto
         `}
-        style={{ maxWidth: '100vw' }}
       >
         <h2 className="text-lg sm:text-2xl font-bold text-pink-accent mb-6 sm:mb-8">Admin Dashboard</h2>
         <ul className="space-y-2 sm:space-y-4 flex-grow">
@@ -1051,13 +1057,13 @@ const AdminDashboard = () => {
         </button>
       </nav>
       {/* Main content area */}
-      <main className="relative z-10 flex-1 p-3 sm:p-4 md:p-6 lg:p-8 overflow-auto w-full min-h-screen">
+      <main className="relative z-10 flex-1 p-3 sm:p-4 md:p-6 lg:p-8 overflow-x-hidden overflow-y-auto w-full min-h-screen pb-20 md:pb-8">
         <motion.div 
           key={activeTab}
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5 }}
-          className="max-w-full sm:max-w-7xl mx-auto space-y-6 sm:space-y-8"
+          className="max-w-full sm:max-w-7xl mx-auto space-y-4 sm:space-y-6 md:space-y-8"
         >
           {activeTab === 'Overview' && (
             <div className="space-y-6 sm:space-y-8">
@@ -1067,11 +1073,11 @@ const AdminDashboard = () => {
                   <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-pink-accent">Business Overview</h1>
                   <p className="text-sm sm:text-base text-gray-600 mt-1">Today's summary and key metrics</p>
                 </div>
-                <div className="text-xs sm:text-sm text-gray-500 whitespace-nowrap">
+                <div className="text-xs sm:text-sm text-gray-500 break-words">
                   {new Date().toLocaleDateString('en-US', { 
-                    weekday: 'long', 
+                    weekday: 'short', 
                     year: 'numeric', 
-                    month: 'long', 
+                    month: 'short', 
                     day: 'numeric' 
                   })}
                 </div>
@@ -1513,7 +1519,7 @@ const AdminDashboard = () => {
                       <p className="text-xs sm:text-sm text-gray-600">Your core beauty services</p>
                     </div>
                   </div>
-                  <span className="bg-pink-accent/10 text-pink-accent px-3 sm:px-4 py-1 sm:py-2 rounded-full text-xs sm:text-sm font-medium whitespace-nowrap">
+                  <span className="bg-pink-accent/10 text-pink-accent px-2 sm:px-4 py-1 sm:py-2 rounded-full text-xs sm:text-sm font-medium">
                     {mainServices.length} service{mainServices.length !== 1 ? 's' : ''}
                   </span>
                 </div>
@@ -1628,7 +1634,7 @@ const AdminDashboard = () => {
                       <p className="text-xs sm:text-sm text-gray-600">Optional enhancements and extras</p>
                     </div>
                   </div>
-                  <span className="bg-purple-100 text-purple-600 px-3 sm:px-4 py-1 sm:py-2 rounded-full text-xs sm:text-sm font-medium whitespace-nowrap">
+                  <span className="bg-purple-100 text-purple-600 px-2 sm:px-4 py-1 sm:py-2 rounded-full text-xs sm:text-sm font-medium">
                     {addOns.length} add-on{addOns.length !== 1 ? 's' : ''}
                   </span>
                 </div>
@@ -1738,7 +1744,7 @@ const AdminDashboard = () => {
                   <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-pink-accent">Manage Availability</h1>
                   <p className="text-sm sm:text-base text-gray-600 mt-1">Set your working hours and manage your schedule</p>
                 </div>
-                <div className="text-xs sm:text-sm text-gray-500 whitespace-nowrap">
+                <div className="text-xs sm:text-sm text-gray-500">
                   {availableDays.length} available days
                 </div>
               </div>
@@ -1890,7 +1896,7 @@ const AdminDashboard = () => {
                     </button>
                   </div>
 
-                  <div className="max-w-md mx-auto">
+                  <div className="max-w-full sm:max-w-md mx-auto overflow-x-auto">
                     <Calendar
                       selectRange={false}
                       onClickDay={(value) => {
@@ -1923,7 +1929,7 @@ const AdminDashboard = () => {
                         if (isSelected) return 'bg-blue-500/60 text-gray-900 font-bold rounded-full border-2 border-blue-500';
                         return '';
                       }}
-                      className="rounded-xl shadow-sm w-full"
+                      className="rounded-xl shadow-sm w-full min-w-[280px]"
                       allowPartialRange={false}
                       minDetail="month"
                       showNeighboringMonth={false}
@@ -2677,7 +2683,7 @@ const AdminDashboard = () => {
                       setShowAddClientModal(true);
                       setCreateBookingForClient(false);
                     }}
-                    className="bg-pink-accent text-white px-6 py-3 rounded-xl hover:bg-pink-accent/90 transition font-medium whitespace-nowrap"
+                    className="bg-pink-accent text-white px-4 sm:px-6 py-2 sm:py-3 rounded-xl hover:bg-pink-accent/90 transition font-medium text-sm sm:text-base"
                   >
                     + Add Client
                   </button>
