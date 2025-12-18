@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import useApi from '../../hooks/useApi';
-import type { Booking, Service, Analytics, ClientSummary, Client } from './types';
+import type { Booking, Service, Analytics, ClientSummary } from './types';
 
 interface UseAdminDataProps {
   isLoggedIn: boolean;

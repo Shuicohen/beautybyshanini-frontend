@@ -14,6 +14,7 @@ import { formatDuration, formatCurrency, formatPrice, getNumericPrice } from './
 import { Sidebar } from './admin/Sidebar';
 import { useAdminData } from './admin/useAdminData';
 import { OverviewTab, ManageServicesTab, AvailabilityTab, BookingsTab, ClientsTab, AnalyticsTab } from './admin/tabs';
+import { groupBookingsByDate, groupBookingsByWeek, groupBookingsByMonth, getDateRangeForFilter } from './admin/tabs/bookingHelpers';
 
 const AdminDashboard = () => {
   const navigate = useNavigate();
@@ -537,108 +538,7 @@ const AdminDashboard = () => {
     }
   };
 
-  // Helper function to get date range for time filter
-  const getDateRangeForFilter = (filter: 'today' | 'week' | 'month' | 'all') => {
-    const now = new Date();
-    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-    
-    switch (filter) {
-      case 'today':
-        return { start: today, end: new Date(today.getTime() + 24 * 60 * 60 * 1000) };
-      case 'week':
-        const startOfWeek = new Date(today);
-        startOfWeek.setDate(today.getDate() - today.getDay()); // Start from Sunday
-        const endOfWeek = new Date(startOfWeek);
-        endOfWeek.setDate(startOfWeek.getDate() + 7);
-        return { start: startOfWeek, end: endOfWeek };
-      case 'month':
-        const startOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
-        const endOfMonth = new Date(today.getFullYear(), today.getMonth() + 1, 1);
-        return { start: startOfMonth, end: endOfMonth };
-      case 'all':
-      default:
-        return null;
-    }
-  };
-
-  // Helper function to group bookings by date
-  const groupBookingsByDate = (bookings: Booking[]) => {
-    const groups: { [key: string]: Booking[] } = {};
-    
-    bookings.forEach(booking => {
-      const dateKey = new Date(booking.date).toDateString();
-      if (!groups[dateKey]) {
-        groups[dateKey] = [];
-      }
-      groups[dateKey].push(booking);
-    });
-    
-    // Sort bookings within each group by time
-    Object.keys(groups).forEach(dateKey => {
-      groups[dateKey].sort((a, b) => a.time.localeCompare(b.time));
-    });
-    
-    return groups;
-  };
-
-  // Helper function to group bookings by week for month view
-  const groupBookingsByWeek = (bookings: Booking[]) => {
-    const groups: { [key: string]: Booking[] } = {};
-    
-    bookings.forEach(booking => {
-      const bookingDate = new Date(booking.date);
-      const startOfWeek = new Date(bookingDate);
-      startOfWeek.setDate(bookingDate.getDate() - bookingDate.getDay()); // Start from Sunday
-      const endOfWeek = new Date(startOfWeek);
-      endOfWeek.setDate(startOfWeek.getDate() + 6);
-      
-      const weekKey = `${startOfWeek.toLocaleDateString()} - ${endOfWeek.toLocaleDateString()}`;
-      if (!groups[weekKey]) {
-        groups[weekKey] = [];
-      }
-      groups[weekKey].push(booking);
-    });
-    
-    // Sort bookings within each group by date and time
-    Object.keys(groups).forEach(weekKey => {
-      groups[weekKey].sort((a, b) => {
-        const dateCompare = new Date(a.date).getTime() - new Date(b.date).getTime();
-        if (dateCompare === 0) {
-          return a.time.localeCompare(b.time);
-        }
-        return dateCompare;
-      });
-    });
-    
-    return groups;
-  };
-
-  // Helper function to group bookings by month for 'all' view
-  const groupBookingsByMonth = (bookings: Booking[]) => {
-    const groups: { [key: string]: Booking[] } = {};
-    
-    bookings.forEach(booking => {
-      const bookingDate = new Date(booking.date);
-      const monthKey = bookingDate.toLocaleDateString('en-US', { year: 'numeric', month: 'long' });
-      if (!groups[monthKey]) {
-        groups[monthKey] = [];
-      }
-      groups[monthKey].push(booking);
-    });
-    
-    // Sort bookings within each group by date and time
-    Object.keys(groups).forEach(monthKey => {
-      groups[monthKey].sort((a, b) => {
-        const dateCompare = new Date(a.date).getTime() - new Date(b.date).getTime();
-        if (dateCompare === 0) {
-          return a.time.localeCompare(b.time);
-        }
-        return dateCompare;
-      });
-    });
-    
-    return groups;
-  };
+  // Helper functions are now imported from './admin/tabs/bookingHelpers'
 
   // Filter bookings based on search term and past/upcoming toggle
   const filteredBookings = bookings.filter(booking => {
@@ -832,13 +732,35 @@ const AdminDashboard = () => {
             />
           )}
           {activeTab === 'Bookings' && (
-            <BookingsTab />
+            <BookingsTab
+              bookings={bookings}
+              onEditBooking={openEditBookingModal}
+              onCancelBooking={onCancelBooking}
+              onBookingDetails={openBookingDetailsModal}
+            />
           )}
           {activeTab === 'Clients' && (
-            <ClientsTab />
+            <ClientsTab
+              clients={clients}
+              loadingClients={loadingClients}
+              onAddClient={() => {
+                setShowAddClientModal(true);
+                setCreateBookingForClient(false);
+              }}
+              api={api}
+              setSelectedClient={setSelectedClient}
+              setShowClientDetailsModal={setShowClientDetailsModal}
+              setError={setError}
+            />
           )}
           {activeTab === 'Analytics' && (
-            <AnalyticsTab />
+            <AnalyticsTab
+              analytics={analytics}
+              bookings={bookings}
+              analyticsTimeRange={analyticsTimeRange}
+              onTimeRangeChange={setAnalyticsTimeRange}
+              onSaveGoals={handleSaveGoals}
+            />
           )}
           {/* Keep the old code below for reference - will be removed after full extraction */}
           {false && activeTab === 'Overview' && (
@@ -1147,7 +1069,8 @@ const AdminDashboard = () => {
               </div>
             </div>
           )}
-          {activeTab === 'Manage Services' && (
+          {/* Old code sections removed - using extracted components */}
+          {false && activeTab === 'Manage Services' && (
             <div className="space-y-6 sm:space-y-8">
               {/* Header */}
               <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 sm:gap-4">
@@ -1512,7 +1435,7 @@ const AdminDashboard = () => {
               </div>
             </div>
           )}
-          {activeTab === 'Availability' && (
+          {false && activeTab === 'Availability' && (
             <div className="space-y-6 sm:space-y-8">
               {/* Header */}
               <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 sm:gap-4">
@@ -1844,7 +1767,7 @@ const AdminDashboard = () => {
               )}
             </div>
           )}
-          {activeTab === 'Bookings' && (
+          {false && activeTab === 'Bookings' && (
             <div>
               <div className="flex flex-col sm:flex-row justify-between items-center mb-6 gap-4">
                 <div className="flex flex-col items-start">
@@ -2409,7 +2332,7 @@ const AdminDashboard = () => {
               </div>
             </div>
           )}
-          {activeTab === 'Clients' && (
+          {false && activeTab === 'Clients' && (
             <div className="space-y-6">
               <div className="flex flex-col sm:flex-row justify-between items-center mb-6 gap-4">
                 <div className="flex flex-col items-start">
@@ -2564,7 +2487,7 @@ const AdminDashboard = () => {
               )}
             </div>
           )}
-          {activeTab === 'Analytics' && (
+          {false && activeTab === 'Analytics' && (
             <div className="space-y-6 sm:space-y-8">
               <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 sm:gap-4">
                 <div>

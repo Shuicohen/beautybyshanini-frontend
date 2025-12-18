@@ -1,4 +1,4 @@
-import type { Booking, Service, Analytics, ClientSummary, Client } from '../types';
+import type { Booking, Service, Analytics, ClientSummary } from '../types';
 
 export interface AdminTabProps {
   // Data

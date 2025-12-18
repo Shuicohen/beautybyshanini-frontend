@@ -294,7 +294,7 @@ export const AvailabilityTab = ({
                     const startDate = format(today, 'yyyy-MM-dd');
                     const endDate = format(twoMonthsFromNow, 'yyyy-MM-dd');
                     
-                    const result = await api.post('/api/availability/sync', { 
+                    await api.post('/api/availability/sync', { 
                       startDate,
                       endDate
                     });
