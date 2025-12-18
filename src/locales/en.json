@@ -113,5 +113,7 @@
   "cancelFailed": "Failed to cancel appointment. Please contact us directly.",
   "invalidBookingLink": "Invalid booking link",
   "bookingNotFoundOrExpired": "Booking not found or link expired",
-  "failedToLoadBookingDetails": "Failed to load booking details"
+  "failedToLoadBookingDetails": "Failed to load booking details",
+  "nailArtAddOnsIntro": "Nail art add-ons (10–80₪). Popular options:",
+  "individualNailFixNote": "5 or more nails = new full set"
 }

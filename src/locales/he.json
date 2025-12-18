@@ -113,5 +113,7 @@
   "cancelFailed": "נכשל בביטול התור. אנא צור איתנו קשר ישיר.",
   "invalidBookingLink": "קישור תור לא תקין",
   "bookingNotFoundOrExpired": "תור לא נמצא או שהקישור פג",
-  "failedToLoadBookingDetails": "נכשל בטעינת פרטי התור"
+  "failedToLoadBookingDetails": "נכשל בטעינת פרטי התור",
+  "nailArtAddOnsIntro": "תוספות עיצוב ציפורניים (10–80₪). אפשרויות פופולריות:",
+  "individualNailFixNote": "5 ציפורניים או יותר = סט מלא חדש"
 }

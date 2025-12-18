@@ -5,16 +5,18 @@ import Modal from './Modal';
 import { useForm } from 'react-hook-form';
 import Calendar from 'react-calendar';
 import 'react-calendar/dist/Calendar.css';
-import { format } from 'date-fns';
+import { format, addMonths } from 'date-fns';
 import { motion } from 'framer-motion';
-import { FaChartBar, FaCalendarAlt, FaList, FaCog, FaEye } from 'react-icons/fa';
+import { FaChartBar, FaCalendarAlt, FaList, FaCog, FaEye, FaUsers } from 'react-icons/fa';
 import { FiMenu, FiX } from 'react-icons/fi';
+import AnimatedBackground from './AnimatedBackground';
 
 const tabs = [
   { name: 'Overview', icon: FaEye },
   { name: 'Manage Services', icon: FaCog },
   { name: 'Availability', icon: FaCalendarAlt },
   { name: 'Bookings', icon: FaList },
+  { name: 'Clients', icon: FaUsers },
   { name: 'Analytics', icon: FaChartBar },
 ];
 
@@ -30,8 +32,31 @@ const formatCurrency = (amount: number) => {
   return `₪ ${amount.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`;
 };
 
+// Helper function to format price (handles ranges like "10-80")
+const formatPrice = (price: number | string): string => {
+  if (typeof price === 'string' && price.includes('-')) {
+    // Format as "10 - 80 ₪"
+    const parts = price.split('-').map(p => p.trim());
+    return `₪ ${parts.join(' - ')}`;
+  }
+  return formatCurrency(Number(price));
+};
+
+// Helper function to get numeric price for calculations (handles ranges by using minimum)
+const getNumericPrice = (price: number | string | undefined | null): number => {
+  if (price === undefined || price === null) return 0;
+  if (typeof price === 'string' && price.includes('-')) {
+    const parts = price.split('-').map(p => p.trim());
+    const min = Number(parts[0]);
+    return isNaN(min) ? 0 : min;
+  }
+  const numPrice = Number(price);
+  return isNaN(numPrice) ? 0 : numPrice;
+};
+
 interface Booking {
   id: string;
+  booking_reference?: string; // Human-readable booking reference (BBS{month/year}{number})
   service_id: string;
   date: string;
   time: string;
@@ -50,13 +75,46 @@ interface Booking {
     price: number;
     duration?: number;
   }>;
+  custom_request?: string;
+  custom_image?: string;
+  status?: 'active' | 'cancelled';
+  cancelled_at?: string;
+}
+interface ClientSummary {
+  phone: string;
+  name: string;
+  email: string;
+  totalBookings: number;
+  totalSpent: number;
+  lastVisit?: string;
+  firstVisit?: string;
+  averageBookingValue: number;
+  activeBookings: number;
+  cancelledBookings: number;
+}
+interface Client {
+  phone: string;
+  name: string;
+  email: string;
+  totalBookings: number;
+  totalSpent: number;
+  lastVisit?: string;
+  firstVisit?: string;
+  averageBookingValue: number;
+  bookings: Booking[];
 }
 interface Service {
   id: string;
   name: string;
+  name_en?: string;
+  name_he?: string;
+  description_en?: string;
+  description_he?: string;
   duration: number;
-  price: number;
+  price: number | string; // Can be a number or a range string like "10-80"
   is_addon: boolean;
+  category?: string;
+  is_active?: boolean;
 }
 interface Analytics {
   mostBooked: string;
@@ -102,7 +160,18 @@ interface Analytics {
   satisfactionScore: number;
   totalReviews: number;
 }
-type ServiceFormData = { name: string; duration: number; price: number; is_addon: boolean };
+type ServiceFormData = { 
+  name: string; 
+  name_en?: string;
+  name_he?: string;
+  description_en?: string;
+  description_he?: string;
+  duration: number; 
+  price: number | string; 
+  is_addon: boolean;
+  category?: string;
+  is_active?: boolean;
+};
 type BlockTimeFormData = { start_time: string; end_time: string; reason: string };
 type OpenHoursFormData = { start_time: string; end_time: string };
 type BookingFormData = { service_id: string; date: string; time: string; client_name: string; client_email: string; client_phone: string; language: string };
@@ -170,6 +239,16 @@ const AdminDashboard = () => {
   const [timeFilter, setTimeFilter] = useState<'today' | 'week' | 'month' | 'all'>('all');
   const [selectedBooking, setSelectedBooking] = useState<any>(null);
   const [showBookingDetailsModal, setShowBookingDetailsModal] = useState(false);
+  const [isEditingBookingDetails, setIsEditingBookingDetails] = useState(false);
+  const [editingBookingForm, setEditingBookingForm] = useState({
+    service_id: '',
+    date: '',
+    time: '',
+    price: '',
+    addon_ids: [] as string[],
+    customAddonPrices: {} as Record<string, string>,
+    addonQuantities: {} as Record<string, number>
+  });
   const [singleDayAction, setSingleDayAction] = useState<'editHours' | 'blockTime'>('editHours');
   const [showDateDetails, setShowDateDetails] = useState<boolean>(false);
   const [dateDetails, setDateDetails] = useState<{
@@ -180,6 +259,24 @@ const AdminDashboard = () => {
   const [selectedBookingAddOns, setSelectedBookingAddOns] = useState<Service[]>([]);
   const [analyticsTimeRange, setAnalyticsTimeRange] = useState<'week' | 'month' | 'quarter' | 'year'>('month');
   const [revenueChartType, setRevenueChartType] = useState<'daily' | 'weekly'>('weekly');
+  const [clients, setClients] = useState<ClientSummary[]>([]);
+  const [selectedClient, setSelectedClient] = useState<Client | null>(null);
+  const [clientSearchTerm, setClientSearchTerm] = useState<string>('');
+  const [loadingClients, setLoadingClients] = useState<boolean>(false);
+  const [showAddClientModal, setShowAddClientModal] = useState<boolean>(false);
+  const [showClientDetailsModal, setShowClientDetailsModal] = useState<boolean>(false);
+  const [isEditingClient, setIsEditingClient] = useState<boolean>(false);
+  const [editingClientForm, setEditingClientForm] = useState({ name: '', email: '', phone: '' });
+  const [createBookingForClient, setCreateBookingForClient] = useState<boolean>(false);
+  const [newClientForm, setNewClientForm] = useState({
+    name: '',
+    phone: '',
+    email: '',
+    service_id: '',
+    date: '',
+    time: '',
+    language: 'en'
+  });
 
   // State for editing performance goals
   const [editingGoals, setEditingGoals] = useState(false);
@@ -187,6 +284,9 @@ const AdminDashboard = () => {
     monthlyGoal: analytics.monthlyGoal,
     monthlyBookingGoal: analytics.monthlyBookingGoal
   });
+  // State for selected month and year for goals
+  const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth());
+  const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
   useEffect(() => {
     setGoalInputs({
       monthlyGoal: analytics.monthlyGoal,
@@ -208,22 +308,115 @@ const AdminDashboard = () => {
       .catch((err) => setError(err.message));
   };
 
+  // Fetch clients when Clients tab is active
+  useEffect(() => {
+    if (isLoggedIn && token && activeTab === 'Clients') {
+      setLoadingClients(true);
+      api.get('/api/clients')
+        .then((clientsData: ClientSummary[]) => {
+          setClients(clientsData);
+          setLoadingClients(false);
+        })
+        .catch((err) => {
+          if (import.meta.env.DEV) console.error('Error fetching clients:', err);
+          setError(err.message);
+          setLoadingClients(false);
+        });
+    }
+  }, [isLoggedIn, token, activeTab]);
+
+  // Fetch client details when a client is selected
+  useEffect(() => {
+    if (selectedClient?.phone && isLoggedIn && token) {
+      api.get(`/api/clients/${encodeURIComponent(selectedClient.phone)}`)
+        .then((clientData: Client) => {
+          setSelectedClient(clientData);
+        })
+        .catch((err) => {
+          if (import.meta.env.DEV) console.error('Error fetching client details:', err);
+          setError(err.message);
+        });
+    }
+  }, [selectedClient?.phone, isLoggedIn, token]);
+
+  // Fetch analytics when time range changes
+  useEffect(() => {
+    if (isLoggedIn && token && activeTab === 'Analytics') {
+      api.get(`/api/analytics?range=${analyticsTimeRange}`)
+        .then((analyticsData: any) => {
+          const toNum = (v: any, fallback = 0) => {
+            const n = typeof v === 'number' ? v : parseFloat(v);
+            return isNaN(n) ? fallback : n;
+          };
+          const sanitizeStats = (arr: any[], fields: string[]) =>
+            Array.isArray(arr)
+              ? arr.map(obj => {
+                  const newObj: any = { ...obj };
+                  fields.forEach(f => { newObj[f] = toNum(obj[f]); });
+                  return newObj;
+                })
+              : [];
+          
+          const mergedAnalytics = {
+            ...analytics,
+            mostBooked: analyticsData?.mostBooked || '',
+            vipClients: Array.isArray(analyticsData?.vipClients) ? analyticsData.vipClients : [],
+            revenueGrowth: toNum(analyticsData?.revenueGrowth),
+            totalBookings: toNum(analyticsData?.totalBookings),
+            bookingGrowth: toNum(analyticsData?.bookingGrowth),
+            totalClients: toNum(analyticsData?.totalClients),
+            newClientsGrowth: toNum(analyticsData?.newClientsGrowth),
+            avgBookingValue: toNum(analyticsData?.avgBookingValue),
+            revenueChart: Array.isArray(analyticsData?.revenueChart)
+              ? analyticsData.revenueChart.map((item: any) => ({
+                  label: item.label,
+                  value: toNum(item.value)
+                }))
+              : [],
+            serviceStats: sanitizeStats(analyticsData?.serviceStats, ['bookings', 'revenue', 'percentage']),
+            peakHours: sanitizeStats(analyticsData?.peakHours, ['bookings', 'percentage']),
+            repeatCustomerRate: toNum(analyticsData?.repeatCustomerRate),
+            newClientsThisPeriod: toNum(analyticsData?.newClientsThisPeriod),
+            avgVisitsPerClient: toNum(analyticsData?.avgVisitsPerClient),
+            clientRetentionRate: toNum(analyticsData?.clientRetentionRate),
+            avgBookingsPerDay: toNum(analyticsData?.avgBookingsPerDay),
+            busiestDay: analyticsData?.busiestDay || '',
+            cancellationRate: toNum(analyticsData?.cancellationRate),
+            noShowRate: toNum(analyticsData?.noShowRate),
+            addonStats: sanitizeStats(analyticsData?.addonStats, ['bookings', 'revenue', 'popularityRate', 'avgPerBooking']),
+            monthlyGoalProgress: toNum(analyticsData?.monthlyGoalProgress),
+            currentMonthRevenue: toNum(analyticsData?.currentMonthRevenue),
+            monthlyGoal: toNum(analyticsData?.monthlyGoal),
+            bookingGoalProgress: toNum(analyticsData?.bookingGoalProgress),
+            currentMonthBookings: toNum(analyticsData?.currentMonthBookings),
+            monthlyBookingGoal: toNum(analyticsData?.monthlyBookingGoal),
+            satisfactionScore: toNum(analyticsData?.satisfactionScore),
+            totalReviews: toNum(analyticsData?.totalReviews),
+            revenueEstimate: toNum(analyticsData?.revenueEstimate),
+            totalRevenue: toNum(analyticsData?.totalRevenue)
+          };
+          setAnalytics(mergedAnalytics);
+        })
+        .catch((err: any) => {
+          if (import.meta.env.DEV) console.error('Analytics fetch failed:', err);
+        });
+    }
+  }, [analyticsTimeRange, activeTab, isLoggedIn, token]);
+
   useEffect(() => {
     if (isLoggedIn && token) {
       setLoading(true);
       setError(null);
-      console.log('AdminDashboard: Starting data fetch');
       Promise.all([
-        api.get('/api/bookings').then(data => { console.log('Bookings response:', data); return data; }).catch(err => { console.error('Bookings error:', err); setError(err.message); }),
-        api.get('/api/services').then(data => { console.log('Services response:', data); return data; }).catch(err => { console.error('Services error:', err); setError(err.message); }),
-        api.get('/api/analytics').then(data => { console.log('Analytics response:', data); return data; }).catch(err => {
-          console.error('Analytics fetch failed:', err);
+        api.get('/api/bookings').then(data => data).catch(err => { if (import.meta.env.DEV) console.error('Bookings error:', err); setError(err.message); }),
+        api.get('/api/services').then(data => data).catch(err => { if (import.meta.env.DEV) console.error('Services error:', err); setError(err.message); }),
+        api.get(`/api/analytics?range=${analyticsTimeRange}`).then(data => data).catch(err => {
+          if (import.meta.env.DEV) console.error('Analytics fetch failed:', err);
           return { mostBooked: '', revenueEstimate: 0, vipClients: [] }; // Default fallback
         }),
-        api.get('/api/availability/dates').then(data => { console.log('Availability response:', data); return data; }).catch(err => { console.error('Availability error:', err); setError(err.message); }),
+        api.get('/api/availability/dates').then(data => data).catch(err => { if (import.meta.env.DEV) console.error('Availability error:', err); setError(err.message); }),
       ])
         .then(([bookingsData, servicesData, analyticsData, availabilityData]) => {
-          console.log('AdminDashboard: Data fetch complete', { bookingsData, servicesData, analyticsData, availabilityData });
           setBookings(bookingsData || []);
           setServices(servicesData || []);
           
@@ -302,11 +495,10 @@ const AdminDashboard = () => {
           setAvailableDays(available);
         })
         .catch(err => {
-          console.error('AdminDashboard: Promise.all error', err);
+          if (import.meta.env.DEV) console.error('AdminDashboard: Promise.all error', err);
           setError(err.message);
         })
         .finally(() => {
-          console.log('AdminDashboard: Loading finished');
           setLoading(false);
         });
     }
@@ -450,7 +642,19 @@ const AdminDashboard = () => {
   const openEditModal = (service: Service) => {
     setEditingService(service);
     setIsAddingAddon(service.is_addon);
-    reset(service);
+    // Ensure all fields are populated, including defaults for missing fields
+    reset({
+      name: service.name || '',
+      name_en: service.name_en || service.name || '',
+      name_he: service.name_he || '',
+      description_en: service.description_en || '',
+      description_he: service.description_he || '',
+      duration: service.duration || 0,
+      price: service.price || 0,
+      is_addon: service.is_addon || false,
+      category: service.category || '',
+      is_active: service.is_active !== undefined ? service.is_active : true
+    });
     setModalType('serviceForm');
     setShowModal(true);
   };
@@ -571,8 +775,6 @@ const AdminDashboard = () => {
       day: format(editDate, 'yyyy-MM-dd'),
     };
     
-    console.log('Blocking time with payload:', payload);
-    
     // Validate required fields on frontend
     if (!payload.start_time || !payload.end_time || !payload.day) {
       setError('Please fill in all required fields (start time and end time)');
@@ -596,11 +798,10 @@ const AdminDashboard = () => {
 
   // Handler for unblocking a specific time slot
   const onUnblockTime = (blockId: string) => {
-    console.log('onUnblockTime called with blockId:', blockId);
     if (!editDate) return;
     
     if (!blockId || blockId === 'undefined') {
-      console.error('Invalid blockId:', blockId);
+      if (import.meta.env.DEV) console.error('Invalid blockId:', blockId);
       setError('Cannot unblock: Invalid block ID');
       return;
     }
@@ -625,18 +826,6 @@ const AdminDashboard = () => {
       // Use the new admin endpoint to get raw availability data
       const response = await api.get(`/api/availability/admin?day=${dateStr}`);
       
-      console.log('Fetched date details response:', response);
-      console.log('Blocked slots:', response?.blockedSlots);
-      
-      // Debug each blocked slot
-      if (response?.blockedSlots) {
-        response.blockedSlots.forEach((slot: any, index: number) => {
-          console.log(`Blocked slot ${index}:`, slot);
-          console.log(`Blocked slot ${index} - id:`, slot.id, 'type:', typeof slot.id);
-          console.log(`Blocked slot ${index} - start_time:`, slot.start_time);
-          console.log(`Blocked slot ${index} - end_time:`, slot.end_time);
-        });
-      }
       
       setDateDetails({
         availableSlots: response?.availableSlots || [],
@@ -654,7 +843,7 @@ const AdminDashboard = () => {
       
       setShowDateDetails(true);
     } catch (error) {
-      console.error('Error fetching date details:', error);
+      if (import.meta.env.DEV) console.error('Error fetching date details:', error);
       // Show empty state
       setDateDetails({
         availableSlots: [],
@@ -807,7 +996,8 @@ const AdminDashboard = () => {
   if (error) return <div className="flex justify-center items-center h-screen text-red-500">Error: {error}. <button onClick={() => window.location.reload()} className="ml-2 text-pink-accent underline">Retry</button></div>;
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-soft-pink to-baby-blue/20 flex flex-col md:flex-row">
+    <div className="relative min-h-screen flex flex-col md:flex-row">
+      <AnimatedBackground />
       {/* Mobile menu button */}
       <button 
         className="md:hidden p-4 bg-white/80 text-pink-accent fixed top-4 left-4 z-50 rounded-full shadow-lg"
@@ -819,11 +1009,11 @@ const AdminDashboard = () => {
       {/* Sidebar navigation */}
       <nav
         className={`
-          bg-white/90 backdrop-blur-md p-4 sm:p-6 shadow-soft flex flex-col z-40
+          relative z-10 bg-white/90 backdrop-blur-md p-4 sm:p-6 shadow-soft flex flex-col z-40
           w-full h-screen fixed top-0 left-0 transition-transform duration-300
           md:static md:w-1/5 md:h-auto md:block md:translate-x-0
           ${isMenuOpen ? 'translate-x-0' : '-translate-x-full'}
-          md:translate-x-0
+          md:translate-x-0 border-r border-white/20
         `}
         style={{ maxWidth: '100vw' }}
       >
@@ -854,23 +1044,23 @@ const AdminDashboard = () => {
         </button>
       </nav>
       {/* Main content area */}
-      <main className="flex-1 p-2 sm:p-4 md:p-8 overflow-auto w-full min-h-screen">
+      <main className="relative z-10 flex-1 p-3 sm:p-4 md:p-6 lg:p-8 overflow-auto w-full min-h-screen">
         <motion.div 
           key={activeTab}
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5 }}
-          className="max-w-full sm:max-w-7xl mx-auto"
+          className="max-w-full sm:max-w-7xl mx-auto space-y-6 sm:space-y-8"
         >
           {activeTab === 'Overview' && (
-            <div className="space-y-8">
+            <div className="space-y-6 sm:space-y-8">
               {/* Header */}
-              <div className="flex flex-col sm:flex-row justify-between items-center gap-4">
+              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 sm:gap-4">
                 <div>
-                  <h1 className="text-3xl font-bold text-pink-accent">Business Overview</h1>
-                  <p className="text-gray-600 mt-1">Today's summary and key metrics</p>
+                  <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-pink-accent">Business Overview</h1>
+                  <p className="text-sm sm:text-base text-gray-600 mt-1">Today's summary and key metrics</p>
                 </div>
-                <div className="text-sm text-gray-500">
+                <div className="text-xs sm:text-sm text-gray-500 whitespace-nowrap">
                   {new Date().toLocaleDateString('en-US', { 
                     weekday: 'long', 
                     year: 'numeric', 
@@ -881,7 +1071,7 @@ const AdminDashboard = () => {
               </div>
 
               {/* Key Metrics Grid */}
-              <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-6">
+              <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 lg:gap-6">
                 <motion.button
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
@@ -976,11 +1166,11 @@ const AdminDashboard = () => {
               </div>
 
               {/* Today's Overview */}
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 sm:gap-8">
                 {/* Today's Appointments */}
-                <div className="bg-white p-6 rounded-2xl shadow-soft">
-                  <div className="flex items-center justify-between mb-6">
-                    <h3 className="text-xl font-bold text-gray-800 flex items-center gap-2">
+                <div className="bg-white/90 backdrop-blur-md p-4 sm:p-6 rounded-xl sm:rounded-2xl shadow-soft border border-white/20">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-0 mb-4 sm:mb-6">
+                    <h3 className="text-lg sm:text-xl font-bold text-gray-800 flex items-center gap-2">
                       <svg className="w-5 h-5 text-orange-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
                       </svg>
@@ -1050,8 +1240,8 @@ const AdminDashboard = () => {
                 </div>
 
                 {/* Quick Stats */}
-                <div className="bg-white p-6 rounded-2xl shadow-soft">
-                  <h3 className="text-xl font-bold text-gray-800 mb-6 flex items-center gap-2">
+                <div className="bg-white/90 backdrop-blur-md p-4 sm:p-6 rounded-xl sm:rounded-2xl shadow-soft border border-white/20">
+                  <h3 className="text-lg sm:text-xl font-bold text-gray-800 mb-4 sm:mb-6 flex items-center gap-2">
                     <svg className="w-5 h-5 text-pink-accent" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
                     </svg>
@@ -1109,14 +1299,14 @@ const AdminDashboard = () => {
               </div>
 
               {/* Quick Actions */}
-              <div className="bg-gradient-to-br from-indigo-50 to-purple-50 p-6 rounded-2xl shadow-soft border border-indigo-200">
-                <h3 className="text-xl font-bold text-gray-800 mb-6 flex items-center gap-2">
+              <div className="bg-gradient-to-br from-indigo-50 to-purple-50 p-4 sm:p-6 rounded-xl sm:rounded-2xl shadow-soft border border-indigo-200">
+                <h3 className="text-lg sm:text-xl font-bold text-gray-800 mb-4 sm:mb-6 flex items-center gap-2">
                   <svg className="w-5 h-5 text-indigo-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
                   </svg>
                   Quick Actions
                 </h3>
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
                   <button
                     onClick={() => setActiveTab('Bookings')}
                     className="bg-white/70 p-4 rounded-xl hover:bg-white/90 transition flex items-center gap-3 text-left"
@@ -1169,20 +1359,20 @@ const AdminDashboard = () => {
             </div>
           )}
           {activeTab === 'Manage Services' && (
-            <div className="space-y-8">
+            <div className="space-y-6 sm:space-y-8">
               {/* Header */}
-              <div className="flex flex-col sm:flex-row justify-between items-center gap-4">
+              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 sm:gap-4">
                 <div>
-                  <h1 className="text-3xl font-bold text-pink-accent">Manage Services</h1>
-                  <p className="text-gray-600 mt-1">Organize your main services and add-ons</p>
+                  <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-pink-accent">Manage Services</h1>
+                  <p className="text-sm sm:text-base text-gray-600 mt-1">Organize your main services and add-ons</p>
                 </div>
-                <div className="text-sm text-gray-500">
+                <div className="text-xs sm:text-sm text-gray-500 whitespace-nowrap">
                   {mainServices.length + addOns.length} total services
                 </div>
               </div>
 
               {/* Quick Stats */}
-              <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-6">
+              <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 lg:gap-6">
                 <motion.div
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
@@ -1303,27 +1493,26 @@ const AdminDashboard = () => {
                 </button>
               </div>
 
-              {/* Main Services Section */}
-              <div className="bg-white p-8 rounded-2xl shadow-soft">
-                <div className="flex items-center justify-between mb-8">
-                  <div className="flex items-center gap-3">
-                    <div className="p-3 bg-pink-accent/20 rounded-xl">
-                      <svg className="w-6 h-6 text-pink-accent" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <div className="bg-white/90 backdrop-blur-md p-4 sm:p-6 lg:p-8 rounded-xl sm:rounded-2xl shadow-soft border border-white/20">
+                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sm:gap-4 mb-6 sm:mb-8">
+                  <div className="flex items-center gap-2 sm:gap-3">
+                    <div className="p-2 sm:p-3 bg-pink-accent/20 rounded-lg sm:rounded-xl">
+                      <svg className="w-5 h-5 sm:w-6 sm:h-6 text-pink-accent" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 9.586V5L8 4z" />
                       </svg>
                     </div>
                     <div>
-                      <h2 className="text-2xl font-bold text-gray-800">Main Services</h2>
-                      <p className="text-gray-600">Your core beauty services</p>
+                      <h2 className="text-xl sm:text-2xl font-bold text-gray-800">Main Services</h2>
+                      <p className="text-xs sm:text-sm text-gray-600">Your core beauty services</p>
                     </div>
                   </div>
-                  <span className="bg-pink-accent/10 text-pink-accent px-4 py-2 rounded-full text-sm font-medium">
+                  <span className="bg-pink-accent/10 text-pink-accent px-3 sm:px-4 py-1 sm:py-2 rounded-full text-xs sm:text-sm font-medium whitespace-nowrap">
                     {mainServices.length} service{mainServices.length !== 1 ? 's' : ''}
                   </span>
                 </div>
                 
                 {mainServices.length > 0 ? (
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
                     {mainServices.map((service) => (
                       <motion.div
                         key={service.id}
@@ -1360,7 +1549,7 @@ const AdminDashboard = () => {
                               </svg>
                               Price
                             </span>
-                            <span className="text-xl font-bold text-pink-accent">{formatCurrency(Number(service.price))}</span>
+                            <span className="text-xl font-bold text-pink-accent">{formatPrice(service.price)}</span>
                           </div>
                         </div>
                         <div className="flex gap-3">
@@ -1419,26 +1608,26 @@ const AdminDashboard = () => {
               </div>
 
               {/* Add-ons Section */}
-              <div className="bg-white p-8 rounded-2xl shadow-soft">
-                <div className="flex items-center justify-between mb-8">
-                  <div className="flex items-center gap-3">
-                    <div className="p-3 bg-purple-500/20 rounded-xl">
-                      <svg className="w-6 h-6 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <div className="bg-white/90 backdrop-blur-md p-4 sm:p-6 lg:p-8 rounded-xl sm:rounded-2xl shadow-soft border border-white/20">
+                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sm:gap-4 mb-6 sm:mb-8">
+                  <div className="flex items-center gap-2 sm:gap-3">
+                    <div className="p-2 sm:p-3 bg-purple-500/20 rounded-lg sm:rounded-xl">
+                      <svg className="w-5 h-5 sm:w-6 sm:h-6 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
                       </svg>
                     </div>
                     <div>
-                      <h2 className="text-2xl font-bold text-gray-800">Add-on Services</h2>
-                      <p className="text-gray-600">Optional enhancements and extras</p>
+                      <h2 className="text-xl sm:text-2xl font-bold text-gray-800">Add-on Services</h2>
+                      <p className="text-xs sm:text-sm text-gray-600">Optional enhancements and extras</p>
                     </div>
                   </div>
-                  <span className="bg-purple-100 text-purple-600 px-4 py-2 rounded-full text-sm font-medium">
+                  <span className="bg-purple-100 text-purple-600 px-3 sm:px-4 py-1 sm:py-2 rounded-full text-xs sm:text-sm font-medium whitespace-nowrap">
                     {addOns.length} add-on{addOns.length !== 1 ? 's' : ''}
                   </span>
                 </div>
                 
                 {addOns.length > 0 ? (
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-6">
                     {addOns.map((addon) => (
                       <motion.div
                         key={addon.id}
@@ -1475,7 +1664,7 @@ const AdminDashboard = () => {
                               </svg>
                               Price
                             </span>
-                            <span className="text-lg font-bold text-purple-600">{formatCurrency(Number(addon.price))}</span>
+                            <span className="text-lg font-bold text-purple-600">{formatPrice(addon.price)}</span>
                           </div>
                         </div>
                         <div className="flex gap-2">
@@ -1535,14 +1724,14 @@ const AdminDashboard = () => {
             </div>
           )}
           {activeTab === 'Availability' && (
-            <div className="space-y-8">
+            <div className="space-y-6 sm:space-y-8">
               {/* Header */}
-              <div className="flex flex-col sm:flex-row justify-between items-center gap-4">
+              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 sm:gap-4">
                 <div>
-                  <h1 className="text-3xl font-bold text-pink-accent">Manage Availability</h1>
-                  <p className="text-gray-600 mt-1">Set your working hours and manage your schedule</p>
+                  <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-pink-accent">Manage Availability</h1>
+                  <p className="text-sm sm:text-base text-gray-600 mt-1">Set your working hours and manage your schedule</p>
                 </div>
-                <div className="text-sm text-gray-500">
+                <div className="text-xs sm:text-sm text-gray-500 whitespace-nowrap">
                   {availableDays.length} available days
                 </div>
               </div>
@@ -1636,9 +1825,9 @@ const AdminDashboard = () => {
               </div>
 
               {/* Calendar Section */}
-              <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 sm:gap-8">
                 {/* Calendar Container */}
-                <div className="lg:col-span-2 bg-white p-6 rounded-2xl shadow-soft">
+                <div className="lg:col-span-2 bg-white p-4 sm:p-6 rounded-xl sm:rounded-2xl shadow-soft">
                   <div className="flex items-center justify-between mb-6">
                     <div className="flex items-center gap-3">
                       <div className="p-2 bg-pink-accent/20 rounded-lg">
@@ -1807,18 +1996,47 @@ const AdminDashboard = () => {
                       </button>
                       
                       <button 
-                        onClick={() => {
-                          if (selectedDays.length > 0) {
-                            api.post('/api/availability/sync', { days: selectedDays.map(d => format(d, 'yyyy-MM-dd')) });
+                        onClick={async () => {
+                          try {
+                            setShowSuccess('🔄 Syncing Google Calendar (this may take up to 60 seconds)...');
+                            const today = new Date();
+                            const twoMonthsFromNow = addMonths(today, 2);
+                            const startDate = format(today, 'yyyy-MM-dd');
+                            const endDate = format(twoMonthsFromNow, 'yyyy-MM-dd');
+                            
+                            const result = await api.post('/api/availability/sync', { 
+                              startDate,
+                              endDate
+                            });
+                            
+                            setShowSuccess(`✅ Synced ${result.synced || 0} time slots from Google Calendar`);
+                            setTimeout(() => setShowSuccess(null), 8000);
+                            
+                            // Refresh available dates after sync
+                            api.get('/api/availability/dates').then((data: { availableDates: string[] }) => {
+                              if (data && Array.isArray(data.availableDates)) {
+                                const today = new Date();
+                                today.setHours(0,0,0,0);
+                                const available = data.availableDates.filter((dateStr: string) => {
+                                  const dateObj = new Date(dateStr);
+                                  dateObj.setHours(0,0,0,0);
+                                  return dateObj >= today;
+                                });
+                                setAvailableDays(available);
+                              }
+                            });
+                          } catch (error: any) {
+                            const errorMsg = error.message || 'Unknown error';
+                            setShowSuccess(`❌ Sync failed: ${errorMsg}. Please try again.`);
+                            setTimeout(() => setShowSuccess(null), 8000);
                           }
                         }} 
-                        className="w-full bg-gradient-to-r from-blue-500 to-blue-400 text-white px-4 py-3 rounded-xl shadow-sm hover:shadow-md transition-all duration-200 font-medium flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed" 
-                        disabled={selectedDays.length === 0}
+                        className="w-full bg-gradient-to-r from-blue-500 to-blue-400 text-white px-4 py-3 rounded-xl shadow-sm hover:shadow-md active:scale-[0.98] transition-all duration-200 font-medium flex items-center justify-center gap-2 touch-manipulation"
                       >
                         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
                         </svg>
-                        Sync Google Calendar
+                        Sync Google Calendar (Next 2 Months)
                       </button>
                     </div>
                   </div>
@@ -1962,7 +2180,7 @@ const AdminDashboard = () => {
                                     </div>
                                     <div className="text-right">
                                       <p className="font-bold text-pink-accent">{formatCurrency(Number(booking.price || 0))}</p>
-                                      <p className="text-xs text-gray-500">ID: {booking.id.slice(-8)}</p>
+                                      <p className="text-xs text-gray-500">ID: {(booking.booking_reference || String(booking.id))}</p>
                                     </div>
                                   </div>
                                   <div>
@@ -2009,7 +2227,7 @@ const AdminDashboard = () => {
                                   </div>
                                   <div className="flex-shrink-0 text-right">
                                     <p className="font-bold text-pink-accent">{formatCurrency(Number(booking.price || 0))}</p>
-                                    <p className="text-xs text-gray-500">ID: {booking.id.slice(-8)}</p>
+                                    <p className="text-xs text-gray-500">ID: {(booking.booking_reference || String(booking.id))}</p>
                                   </div>
                                   {!showPastBookings && (
                                     <div className="flex-shrink-0 flex gap-2">
@@ -2074,7 +2292,7 @@ const AdminDashboard = () => {
                                     </div>
                                     <div className="text-right">
                                       <p className="font-bold text-pink-accent">{formatCurrency(Number(booking.price || 0))}</p>
-                                      <p className="text-xs text-gray-500">ID: {booking.id.slice(-8)}</p>
+                                      <p className="text-xs text-gray-500">ID: {(booking.booking_reference || String(booking.id))}</p>
                                     </div>
                                   </div>
                                   <div>
@@ -2121,7 +2339,7 @@ const AdminDashboard = () => {
                                   <div className="flex items-center gap-4">
                                     <div className="text-right">
                                       <p className="font-bold text-pink-accent">{formatCurrency(Number(booking.price || 0))}</p>
-                                      <p className="text-xs text-gray-500">ID: {booking.id.slice(-8)}</p>
+                                      <p className="text-xs text-gray-500">ID: {(booking.booking_reference || String(booking.id))}</p>
                                     </div>
                                     {!showPastBookings && (
                                       <div className="flex gap-2">
@@ -2186,7 +2404,7 @@ const AdminDashboard = () => {
                                     </div>
                                     <div className="text-right">
                                       <p className="font-bold text-pink-accent">{formatCurrency(Number(booking.price || 0))}</p>
-                                      <p className="text-xs text-gray-500">ID: {booking.id.slice(-8)}</p>
+                                      <p className="text-xs text-gray-500">ID: {(booking.booking_reference || String(booking.id))}</p>
                                     </div>
                                   </div>
                                   <div>
@@ -2236,7 +2454,7 @@ const AdminDashboard = () => {
                                   <div className="flex items-center gap-4">
                                     <div className="text-right">
                                       <p className="font-bold text-pink-accent">{formatCurrency(Number(booking.price || 0))}</p>
-                                      <p className="text-xs text-gray-500">ID: {booking.id.slice(-8)}</p>
+                                      <p className="text-xs text-gray-500">ID: {(booking.booking_reference || String(booking.id))}</p>
                                     </div>
                                     {!showPastBookings && (
                                       <div className="flex gap-2">
@@ -2306,7 +2524,7 @@ const AdminDashboard = () => {
                                     </div>
                                     <div className="text-right">
                                       <p className="font-bold text-pink-accent">{formatCurrency(Number(booking.price || 0))}</p>
-                                      <p className="text-xs text-gray-500">ID: {booking.id.slice(-8)}</p>
+                                      <p className="text-xs text-gray-500">ID: {(booking.booking_reference || String(booking.id))}</p>
                                     </div>
                                   </div>
                                   <div>
@@ -2356,7 +2574,7 @@ const AdminDashboard = () => {
                                   <div className="flex items-center gap-4">
                                     <div className="text-right">
                                       <p className="font-bold text-pink-accent">{formatCurrency(Number(booking.price || 0))}</p>
-                                      <p className="text-xs text-gray-500">ID: {booking.id.slice(-8)}</p>
+                                      <p className="text-xs text-gray-500">ID: {(booking.booking_reference || String(booking.id))}</p>
                                     </div>
                                     {!showPastBookings && (
                                       <div className="flex gap-2">
@@ -2402,12 +2620,167 @@ const AdminDashboard = () => {
               </div>
             </div>
           )}
+          {activeTab === 'Clients' && (
+            <div className="space-y-6">
+              <div className="flex flex-col sm:flex-row justify-between items-center mb-6 gap-4">
+                <div className="flex flex-col items-start">
+                  <h1 className="text-3xl font-bold text-pink-accent">Clients</h1>
+                  <p className="text-gray-600 mt-1">
+                    {clientSearchTerm 
+                      ? `${clients.filter(c => 
+                          c.name.toLowerCase().includes(clientSearchTerm.toLowerCase()) ||
+                          c.phone.includes(clientSearchTerm) ||
+                          c.email.toLowerCase().includes(clientSearchTerm.toLowerCase())
+                        ).length} of ${clients.length} clients`
+                      : `${clients.length} clients`
+                    }
+                  </p>
+                </div>
+                <div className="flex gap-3 w-full sm:w-auto">
+                  <div className="relative flex-1 sm:w-80">
+                    <input
+                      type="text"
+                      placeholder="Search by name, phone, or email..."
+                      value={clientSearchTerm}
+                      onChange={(e) => setClientSearchTerm(e.target.value)}
+                      className="w-full px-4 py-3 pl-10 pr-10 border border-baby-blue/50 rounded-xl focus:border-pink-accent outline-none bg-white/50"
+                    />
+                    <svg
+                      className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                    </svg>
+                    {clientSearchTerm && (
+                      <button
+                        onClick={() => setClientSearchTerm('')}
+                        className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-pink-accent transition"
+                        aria-label="Clear search"
+                      >
+                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                      </button>
+                    )}
+                  </div>
+                  <button
+                    onClick={() => {
+                      setShowAddClientModal(true);
+                      setCreateBookingForClient(false);
+                    }}
+                    className="bg-pink-accent text-white px-6 py-3 rounded-xl hover:bg-pink-accent/90 transition font-medium whitespace-nowrap"
+                  >
+                    + Add Client
+                  </button>
+                </div>
+              </div>
+
+              {loadingClients ? (
+                <div className="flex justify-center items-center py-20">
+                  <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-pink-accent"></div>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {clients.filter(c => 
+                    !clientSearchTerm ||
+                    c.name.toLowerCase().includes(clientSearchTerm.toLowerCase()) ||
+                    c.phone.includes(clientSearchTerm) ||
+                    c.email.toLowerCase().includes(clientSearchTerm.toLowerCase())
+                  ).length === 0 ? (
+                    <div className="bg-baby-blue/10 p-8 rounded-2xl text-center text-lg text-gray-500 font-semibold">
+                      {clientSearchTerm ? 'No clients match your search' : 'No clients found'}
+                    </div>
+                  ) : (
+                    clients
+                      .filter(c => 
+                        !clientSearchTerm ||
+                        c.name.toLowerCase().includes(clientSearchTerm.toLowerCase()) ||
+                        c.phone.includes(clientSearchTerm) ||
+                        c.email.toLowerCase().includes(clientSearchTerm.toLowerCase())
+                      )
+                      .map((client) => (
+                        <div
+                          key={client.phone}
+                          className="bg-white rounded-xl p-6 shadow-soft hover:shadow-md transition border border-baby-blue/20"
+                        >
+                          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                            <div className="flex-1">
+                              <h3 
+                                onClick={() => {
+                                  setSelectedClient({
+                                    ...client,
+                                    bookings: []
+                                  } as Client);
+                                  setShowClientDetailsModal(true);
+                                  api.get(`/api/clients/${encodeURIComponent(client.phone)}`)
+                                    .then((clientData: Client) => {
+                                      setSelectedClient(clientData);
+                                    })
+                                    .catch((err) => {
+                                      if (import.meta.env.DEV) console.error('Error fetching client details:', err);
+                                      setError(err.message);
+                                    });
+                                }}
+                                className="text-xl font-bold text-pink-accent mb-2 cursor-pointer hover:text-pink-accent/80 transition"
+                              >
+                                {client.name}
+                              </h3>
+                              <div className="space-y-1 text-sm text-gray-600">
+                                <p className="flex items-center gap-2">
+                                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
+                                  </svg>
+                                  {client.phone}
+                                </p>
+                                {client.email && (
+                                  <p className="flex items-center gap-2">
+                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                                    </svg>
+                                    {client.email}
+                                  </p>
+                                )}
+                              </div>
+                            </div>
+                            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 w-full sm:w-auto">
+                              <div className="text-center">
+                                <p className="text-xs text-gray-500">Bookings</p>
+                                <p className="text-lg font-bold text-pink-accent">{client.totalBookings}</p>
+                                <p className="text-xs text-gray-400">
+                                  {client.activeBookings} active, {client.cancelledBookings} cancelled
+                                </p>
+                              </div>
+                              <div className="text-center">
+                                <p className="text-xs text-gray-500">Total Spent</p>
+                                <p className="text-lg font-bold text-pink-accent">{formatCurrency(client.totalSpent)}</p>
+                              </div>
+                              <div className="text-center">
+                                <p className="text-xs text-gray-500">Avg Booking</p>
+                                <p className="text-lg font-bold text-pink-accent">{formatCurrency(client.averageBookingValue)}</p>
+                              </div>
+                              <div className="text-center">
+                                <p className="text-xs text-gray-500">Last Visit</p>
+                                <p className="text-sm font-semibold text-gray-700">
+                                  {client.lastVisit ? format(new Date(client.lastVisit), 'MMM d') : 'Never'}
+                                </p>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      ))
+                  )}
+                </div>
+              )}
+            </div>
+          )}
           {activeTab === 'Analytics' && (
-            <div className="space-y-8">
-              <div className="flex flex-col sm:flex-row justify-between items-center gap-4">
+            <div className="space-y-6 sm:space-y-8">
+              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 sm:gap-4">
                 <div>
-                  <h1 className="text-3xl font-bold text-pink-accent">Analytics Dashboard</h1>
-                  <p className="text-gray-600 mt-1">Business insights and performance metrics</p>
+                  <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-pink-accent">Analytics Dashboard</h1>
+                  <p className="text-sm sm:text-base text-gray-600 mt-1">Business insights and performance metrics</p>
                 </div>
                 
                 {/* Time Range Filter */}
@@ -2608,10 +2981,10 @@ const AdminDashboard = () => {
               </div>
 
               {/* Detailed Analytics Grid */}
-              <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 sm:gap-8">
                 {/* Peak Hours */}
-                <div className="bg-white p-6 rounded-2xl shadow-soft">
-                  <h3 className="text-xl font-bold text-gray-800 mb-6 flex items-center gap-2">
+                <div className="bg-white/90 backdrop-blur-md p-4 sm:p-6 rounded-xl sm:rounded-2xl shadow-soft border border-white/20">
+                  <h3 className="text-lg sm:text-xl font-bold text-gray-800 mb-4 sm:mb-6 flex items-center gap-2">
                     <svg className="w-5 h-5 text-orange-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
                     </svg>
@@ -2646,8 +3019,8 @@ const AdminDashboard = () => {
                 </div>
 
                 {/* Customer Insights */}
-                <div className="bg-white p-6 rounded-2xl shadow-soft">
-                  <h3 className="text-xl font-bold text-gray-800 mb-6 flex items-center gap-2">
+                <div className="bg-white/90 backdrop-blur-md p-4 sm:p-6 rounded-xl sm:rounded-2xl shadow-soft border border-white/20">
+                  <h3 className="text-lg sm:text-xl font-bold text-gray-800 mb-4 sm:mb-6 flex items-center gap-2">
                     <svg className="w-5 h-5 text-purple-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
                     </svg>
@@ -2685,8 +3058,8 @@ const AdminDashboard = () => {
                 </div>
 
                 {/* Booking Trends */}
-                <div className="bg-white p-6 rounded-2xl shadow-soft">
-                  <h3 className="text-xl font-bold text-gray-800 mb-6 flex items-center gap-2">
+                <div className="bg-white/90 backdrop-blur-md p-4 sm:p-6 rounded-xl sm:rounded-2xl shadow-soft border border-white/20">
+                  <h3 className="text-lg sm:text-xl font-bold text-gray-800 mb-4 sm:mb-6 flex items-center gap-2">
                     <svg className="w-5 h-5 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
                     </svg>
@@ -2723,11 +3096,11 @@ const AdminDashboard = () => {
               </div>
 
               {/* VIP Clients & Add-ons Performance */}
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 sm:gap-8">
                 {/* VIP Clients */}
-                <div className="bg-white p-6 rounded-2xl shadow-soft">
-                  <div className="flex items-center justify-between mb-6">
-                    <h3 className="text-xl font-bold text-gray-800 flex items-center gap-2">
+                <div className="bg-white/90 backdrop-blur-md p-4 sm:p-6 rounded-xl sm:rounded-2xl shadow-soft border border-white/20">
+                  <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sm:gap-0 mb-4 sm:mb-6">
+                    <h3 className="text-lg sm:text-xl font-bold text-gray-800 flex items-center gap-2">
                       <svg className="w-5 h-5 text-yellow-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.196-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z" />
                       </svg>
@@ -2829,96 +3202,213 @@ const AdminDashboard = () => {
 
               {/* Monthly/Weekly Goals */}
               <div className="bg-gradient-to-br from-indigo-50 to-purple-50 p-6 rounded-2xl shadow-soft border border-indigo-200">
-                <h3 className="text-xl font-bold text-gray-800 mb-6 flex items-center gap-2">
-                  <svg className="w-5 h-5 text-indigo-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                  </svg>
-                  Performance Goals
-                  {!editingGoals && (
-                    <button
-                      className="ml-4 px-3 py-1 rounded bg-indigo-100 text-indigo-700 text-xs font-semibold hover:bg-indigo-200 transition"
-                      onClick={() => setEditingGoals(true)}
+                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-6">
+                  <h3 className="text-xl font-bold text-gray-800 flex items-center gap-2">
+                    <svg className="w-5 h-5 text-indigo-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    Performance Goals
+                  </h3>
+                  <div className="flex items-center gap-3">
+                    <select
+                      value={selectedYear}
+                      onChange={(e) => setSelectedYear(Number(e.target.value))}
+                      className="text-sm border rounded-lg px-3 py-1.5 bg-white text-gray-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 shadow-sm"
                     >
-                      Edit
-                    </button>
-                  )}
-                </h3>
+                      {Array.from({ length: 5 }, (_, i) => {
+                        const year = new Date().getFullYear() - 2 + i;
+                        return (
+                          <option key={year} value={year}>
+                            {year}
+                          </option>
+                        );
+                      })}
+                    </select>
+                    {!editingGoals && (
+                      <button
+                        className="px-3 py-1.5 rounded-lg bg-indigo-100 text-indigo-700 text-xs font-semibold hover:bg-indigo-200 transition"
+                        onClick={() => setEditingGoals(true)}
+                      >
+                        Edit
+                      </button>
+                    )}
+                  </div>
+                </div>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                   {/* Monthly Revenue Goal */}
                   <div className="bg-white/70 p-4 rounded-xl">
                     <div className="flex items-center justify-between mb-3">
                       <span className="text-gray-700 font-medium">Monthly Revenue Goal</span>
-                      <span className="text-sm text-indigo-600 font-bold">{analytics.monthlyGoalProgress}%</span>
+                      <select
+                        value={selectedMonth}
+                        onChange={(e) => setSelectedMonth(Number(e.target.value))}
+                        className="text-xs border rounded px-2 py-1 bg-white text-gray-700 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                      >
+                        {Array.from({ length: 12 }, (_, i) => (
+                          <option key={i} value={i}>
+                            {new Date(2024, i).toLocaleDateString('en-US', { month: 'short' })}
+                          </option>
+                        ))}
+                      </select>
                     </div>
-                    <div className="w-full bg-gray-200 rounded-full h-3 mb-2 overflow-hidden">
-                      <div 
-                        className="h-full bg-gradient-to-r from-indigo-500 to-purple-500 rounded-full transition-all duration-700"
-                        style={{ width: `${Math.min(analytics.monthlyGoalProgress || 0, 100)}%` }}
-                      ></div>
-                    </div>
-                    <div className="flex justify-between text-sm items-center">
-                      <span className="text-gray-600">{formatCurrency(Number(analytics.currentMonthRevenue || 0))}</span>
-                      {editingGoals ? (
-                        <input
-                          type="number"
-                          className="border rounded px-2 py-1 w-24 text-right ml-2"
-                          value={goalInputs.monthlyGoal}
-                          onChange={e => setGoalInputs(g => ({ ...g, monthlyGoal: Number(e.target.value) }))}
-                          min={0}
-                        />
-                      ) : (
-                        <span className="text-gray-600">{formatCurrency(Number(analytics.monthlyGoal || 0))}</span>
-                      )}
-                    </div>
+                    {(() => {
+                      const monthStart = new Date(selectedYear, selectedMonth, 1);
+                      const monthEnd = new Date(selectedYear, selectedMonth + 1, 0);
+                      const daysInMonth = monthEnd.getDate();
+                      const monthRevenue = bookings
+                        .filter(b => {
+                          const bookingDate = new Date(b.date);
+                          return bookingDate >= monthStart && bookingDate <= monthEnd;
+                        })
+                        .reduce((sum, b) => sum + (Number(b.price) || 0), 0);
+                      const monthProgress = analytics.monthlyGoal > 0 
+                        ? Math.min((monthRevenue / analytics.monthlyGoal) * 100, 100) 
+                        : 0;
+                      return (
+                        <>
+                          <div className="w-full bg-gray-200 rounded-full h-3 mb-2 overflow-hidden">
+                            <div 
+                              className="h-full bg-gradient-to-r from-indigo-500 to-purple-500 rounded-full transition-all duration-700"
+                              style={{ width: `${monthProgress}%` }}
+                            ></div>
+                          </div>
+                          <div className="flex justify-between text-sm items-center">
+                            <span className="text-gray-600">{formatCurrency(monthRevenue)}</span>
+                            {editingGoals ? (
+                              <input
+                                type="number"
+                                className="border rounded px-2 py-1 w-24 text-right ml-2"
+                                value={goalInputs.monthlyGoal}
+                                onChange={e => setGoalInputs(g => ({ ...g, monthlyGoal: Number(e.target.value) }))}
+                                min={0}
+                              />
+                            ) : (
+                              <span className="text-gray-600">{formatCurrency(Number(analytics.monthlyGoal || 0))}</span>
+                            )}
+                          </div>
+                          <div className="mt-2 pt-2 border-t border-gray-200">
+                            <div className="text-xs text-gray-500 text-right mb-1">
+                              {monthProgress.toFixed(1)}% progress
+                            </div>
+                            <div className="flex justify-between text-xs text-gray-600">
+                              <span>Avg. per day:</span>
+                              <span className="font-semibold">
+                                {formatCurrency(Math.round(monthRevenue / daysInMonth))}
+                              </span>
+                            </div>
+                          </div>
+                        </>
+                      );
+                    })()}
                   </div>
 
                   {/* Booking Target */}
                   <div className="bg-white/70 p-4 rounded-xl">
                     <div className="flex items-center justify-between mb-3">
                       <span className="text-gray-700 font-medium">Booking Target</span>
-                      <span className="text-sm text-indigo-600 font-bold">{analytics.bookingGoalProgress}%</span>
+                      <select
+                        value={selectedMonth}
+                        onChange={(e) => setSelectedMonth(Number(e.target.value))}
+                        className="text-xs border rounded px-2 py-1 bg-white text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      >
+                        {Array.from({ length: 12 }, (_, i) => (
+                          <option key={i} value={i}>
+                            {new Date(2024, i).toLocaleDateString('en-US', { month: 'short' })}
+                          </option>
+                        ))}
+                      </select>
                     </div>
-                    <div className="w-full bg-gray-200 rounded-full h-3 mb-2 overflow-hidden">
-                      <div 
-                        className="h-full bg-gradient-to-r from-blue-500 to-indigo-500 rounded-full transition-all duration-700"
-                        style={{ width: `${Math.min(analytics.bookingGoalProgress || 0, 100)}%` }}
-                      ></div>
-                    </div>
-                    <div className="flex justify-between text-sm items-center">
-                      <span className="text-gray-600">{analytics.currentMonthBookings || 0}</span>
-                      {editingGoals ? (
-                        <input
-                          type="number"
-                          className="border rounded px-2 py-1 w-16 text-right ml-2"
-                          value={goalInputs.monthlyBookingGoal}
-                          onChange={e => setGoalInputs(g => ({ ...g, monthlyBookingGoal: Number(e.target.value) }))}
-                          min={0}
-                        />
-                      ) : (
-                        <span className="text-gray-600">{analytics.monthlyBookingGoal || 0}</span>
-                      )}
-                    </div>
+                    {(() => {
+                      const monthStart = new Date(selectedYear, selectedMonth, 1);
+                      const monthEnd = new Date(selectedYear, selectedMonth + 1, 0);
+                      const daysInMonth = monthEnd.getDate();
+                      const monthBookings = bookings.filter(b => {
+                        const bookingDate = new Date(b.date);
+                        return bookingDate >= monthStart && bookingDate <= monthEnd;
+                      }).length;
+                      const bookingProgress = analytics.monthlyBookingGoal > 0 
+                        ? Math.min((monthBookings / analytics.monthlyBookingGoal) * 100, 100) 
+                        : 0;
+                      return (
+                        <>
+                          <div className="w-full bg-gray-200 rounded-full h-3 mb-2 overflow-hidden">
+                            <div 
+                              className="h-full bg-gradient-to-r from-blue-500 to-indigo-500 rounded-full transition-all duration-700"
+                              style={{ width: `${bookingProgress}%` }}
+                            ></div>
+                          </div>
+                          <div className="flex justify-between text-sm items-center">
+                            <span className="text-gray-600">{monthBookings}</span>
+                            {editingGoals ? (
+                              <input
+                                type="number"
+                                className="border rounded px-2 py-1 w-16 text-right ml-2"
+                                value={goalInputs.monthlyBookingGoal}
+                                onChange={e => setGoalInputs(g => ({ ...g, monthlyBookingGoal: Number(e.target.value) }))}
+                                min={0}
+                              />
+                            ) : (
+                              <span className="text-gray-600">{analytics.monthlyBookingGoal || 0}</span>
+                            )}
+                          </div>
+                          <div className="mt-2 pt-2 border-t border-gray-200">
+                            <div className="text-xs text-gray-500 text-right mb-1">
+                              {bookingProgress.toFixed(1)}% progress
+                            </div>
+                            <div className="flex justify-between text-xs text-gray-600">
+                              <span>Avg. per day:</span>
+                              <span className="font-semibold">
+                                {(monthBookings / daysInMonth).toFixed(1)}
+                              </span>
+                            </div>
+                          </div>
+                        </>
+                      );
+                    })()}
                   </div>
 
-                  {/* Client Satisfaction */}
+                  {/* Annual Revenue Total */}
                   <div className="bg-white/70 p-4 rounded-xl">
-                    <div className="flex items-center justify-between mb-3">
-                      <span className="text-gray-700 font-medium">Client Satisfaction</span>
-                      <span className="text-sm text-green-600 font-bold">{analytics.satisfactionScore || 0}/5</span>
+                    <div className="mb-3">
+                      <span className="text-gray-700 font-medium">Annual Revenue Total</span>
                     </div>
-                    <div className="flex items-center gap-1">
-                      {[1, 2, 3, 4, 5].map((star) => (
-                        <svg 
-                          key={star}
-                          className={`w-5 h-5 ${star <= (analytics.satisfactionScore || 0) ? 'text-yellow-400' : 'text-gray-300'}`}
-                          fill="currentColor" 
-                          viewBox="0 0 24 24"
-                        >
-                          <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
-                        </svg>
-                      ))}
-                    </div>
-                    <p className="text-sm text-gray-600 mt-2">Based on {analytics.totalReviews || 0} reviews</p>
+                    {(() => {
+                      const yearStart = new Date(selectedYear, 0, 1);
+                      const yearEnd = new Date(selectedYear, 11, 31);
+                      const annualRevenue = bookings
+                        .filter(b => {
+                          const bookingDate = new Date(b.date);
+                          return bookingDate >= yearStart && bookingDate <= yearEnd;
+                        })
+                        .reduce((sum, b) => sum + (Number(b.price) || 0), 0);
+                      // Calculate days in the year (handles leap years)
+                      const isLeapYear = (year: number) => (year % 4 === 0 && year % 100 !== 0) || (year % 400 === 0);
+                      const daysInYear = isLeapYear(selectedYear) ? 366 : 365;
+                      return (
+                        <>
+                          <div className="text-2xl font-bold text-green-600 mb-2">
+                            {formatCurrency(annualRevenue)}
+                          </div>
+                          <div className="text-xs text-gray-500">
+                            Total revenue for {selectedYear}
+                          </div>
+                          <div className="mt-3 pt-3 border-t border-gray-200 space-y-2">
+                            <div className="flex justify-between text-xs text-gray-600">
+                              <span>Avg. per month:</span>
+                              <span className="font-semibold">
+                                {formatCurrency(Math.round(annualRevenue / 12))}
+                              </span>
+                            </div>
+                            <div className="flex justify-between text-xs text-gray-600">
+                              <span>Avg. per day:</span>
+                              <span className="font-semibold">
+                                {formatCurrency(Math.round(annualRevenue / daysInYear))}
+                              </span>
+                            </div>
+                          </div>
+                        </>
+                      );
+                    })()}
                   </div>
                 </div>
                 {editingGoals && (
@@ -2965,14 +3455,6 @@ const AdminDashboard = () => {
             <input {...register('end_time')} placeholder="End Time (HH:mm)" className="block w-full mb-4 p-2 border rounded" />
             <input {...register('reason')} placeholder="Reason" className="block w-full mb-4 p-2 border rounded" />
             <button type="submit" className="bg-pink-accent text-white px-6 py-3 rounded-full w-full">Block</button>
-          </form>
-        )}
-        {modalType === 'openHours' && (
-          <form onSubmit={handleSubmit(onSetOpenHours)}>
-            <h2 className="text-2xl font-bold mb-4">Set Open Hours (Batch)</h2>
-            <input {...register('start_time')} placeholder="Start Time (HH:mm)" className="block w-full mb-4 p-2 border rounded" />
-            <input {...register('end_time')} placeholder="End Time (HH:mm)" className="block w-full mb-4 p-2 border rounded" />
-            <button type="submit" className="bg-green-500 text-white px-6 py-3 rounded-full w-full">Set Hours</button>
           </form>
         )}
       </main>
@@ -3472,48 +3954,135 @@ const AdminDashboard = () => {
               }
             </h2>
             
-            <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Service Name</label>
-                <input 
-                  {...register('name', { required: 'Service name is required' })} 
-                  placeholder="Enter service name" 
-                  className="block w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-accent focus:border-transparent transition"
-                />
+            <div className="space-y-4 max-h-[70vh] overflow-y-auto pr-2">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Service Name (English) *</label>
+                  <input 
+                    {...register('name_en', { required: 'English name is required' })} 
+                    placeholder="Enter service name in English" 
+                    className="block w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-accent focus:border-transparent transition"
+                  />
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Service Name (Hebrew)</label>
+                  <input 
+                    {...register('name_he')} 
+                    placeholder="Enter service name in Hebrew" 
+                    className="block w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-accent focus:border-transparent transition"
+                  />
+                </div>
+              </div>
+
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Description (English)</label>
+                  <textarea 
+                    {...register('description_en')} 
+                    placeholder="Enter service description in English" 
+                    rows={3}
+                    className="block w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-accent focus:border-transparent transition"
+                  />
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Description (Hebrew)</label>
+                  <textarea 
+                    {...register('description_he')} 
+                    placeholder="Enter service description in Hebrew" 
+                    rows={3}
+                    className="block w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-accent focus:border-transparent transition"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Duration (minutes) *</label>
+                  <input 
+                    {...register('duration', { required: 'Duration is required', min: 0 })} 
+                    type="number" 
+                    placeholder="e.g. 60" 
+                    className="block w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-accent focus:border-transparent transition"
+                  />
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Category</label>
+                  <input 
+                    {...register('category')} 
+                    placeholder="e.g. Facial, Hair, Nails" 
+                    className="block w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-accent focus:border-transparent transition"
+                  />
+                </div>
               </div>
               
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Duration (minutes)</label>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Price (₪) *</label>
                 <input 
-                  {...register('duration', { required: 'Duration is required', min: 1 })} 
-                  type="number" 
-                  placeholder="e.g. 60" 
+                  {...register('price', { 
+                    required: 'Price is required',
+                    validate: (value) => {
+                      // Allow range format (e.g., "10-80") for Custom add-on
+                      if (typeof value === 'string' && value.includes('-')) {
+                        const parts = value.split('-').map(p => p.trim());
+                        if (parts.length === 2) {
+                          const min = Number(parts[0]);
+                          const max = Number(parts[1]);
+                          if (!isNaN(min) && !isNaN(max) && min >= 0 && max >= min) {
+                            return true;
+                          }
+                          return 'Invalid price range. Use format: 10-80';
+                        }
+                        return 'Invalid price range format';
+                      }
+                      // For regular prices, validate as number
+                      const numValue = Number(value);
+                      if (isNaN(numValue) || numValue < 0) {
+                        return 'Please enter a valid number';
+                      }
+                      return true;
+                    }
+                  })} 
+                  type={editingService?.name?.toLowerCase().includes('custom') ? 'text' : 'number'}
+                  step={editingService?.name?.toLowerCase().includes('custom') ? undefined : "0.01"}
+                  placeholder={editingService?.name?.toLowerCase().includes('custom') ? "e.g. 10-80" : "e.g. 120.00"} 
                   className="block w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-accent focus:border-transparent transition"
                 />
+                {editingService?.name?.toLowerCase().includes('custom') && (
+                  <p className="text-xs text-gray-500 mt-1">Enter a price range (e.g., 10-80) for variable pricing</p>
+                )}
               </div>
-              
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Price (₪)</label>
-                <input 
-                  {...register('price', { required: 'Price is required', min: 0 })} 
-                  type="number" 
-                  step="0.01" 
-                  placeholder="e.g. 120.00" 
-                  className="block w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-accent focus:border-transparent transition"
-                />
-              </div>
-              
-              <div className="flex items-center">
-                <input 
-                  {...register('is_addon')}
-                  type="checkbox" 
-                  id="is_addon"
-                  className="w-4 h-4 text-pink-accent bg-gray-100 border-gray-300 rounded focus:ring-pink-accent focus:ring-2"
-                />
-                <label htmlFor="is_addon" className="ml-2 text-sm font-medium text-gray-700">
-                  This is an add-on service
-                  <span className="block text-xs text-gray-500">Add-ons can be selected during booking in addition to main services</span>
-                </label>
+
+              <div className="flex flex-col gap-3">
+                <div className="flex items-center">
+                  <input 
+                    {...register('is_addon')}
+                    type="checkbox" 
+                    id="is_addon"
+                    className="w-4 h-4 text-pink-accent bg-gray-100 border-gray-300 rounded focus:ring-pink-accent focus:ring-2"
+                  />
+                  <label htmlFor="is_addon" className="ml-2 text-sm font-medium text-gray-700">
+                    This is an add-on service
+                    <span className="block text-xs text-gray-500">Add-ons can be selected during booking in addition to main services</span>
+                  </label>
+                </div>
+
+                <div className="flex items-center">
+                  <input 
+                    {...register('is_active')}
+                    type="checkbox" 
+                    id="is_active"
+                    defaultChecked={editingService?.is_active !== false}
+                    className="w-4 h-4 text-pink-accent bg-gray-100 border-gray-300 rounded focus:ring-pink-accent focus:ring-2"
+                  />
+                  <label htmlFor="is_active" className="ml-2 text-sm font-medium text-gray-700">
+                    Service is active
+                    <span className="block text-xs text-gray-500">Inactive services won't appear in booking options</span>
+                  </label>
+                </div>
               </div>
             </div>
             
@@ -3828,229 +4397,1165 @@ const AdminDashboard = () => {
         )}
       </Modal>
 
+      {/* Add Client Modal */}
+      <Modal isOpen={showAddClientModal} onClose={() => {
+        setShowAddClientModal(false);
+        setCreateBookingForClient(false);
+        setNewClientForm({
+          name: '',
+          phone: '',
+          email: '',
+          service_id: '',
+          date: '',
+          time: '',
+          language: 'en'
+        });
+      }}>
+        <div className="w-full max-w-2xl mx-auto">
+          <h2 className="text-2xl font-bold text-gray-800 mb-6">Add New Client</h2>
+          <form onSubmit={(e) => {
+            e.preventDefault();
+            // Always create a booking to create the client (clients are derived from bookings)
+            api.post('/api/bookings', {
+              client_name: newClientForm.name,
+              client_phone: newClientForm.phone,
+              client_email: newClientForm.email,
+              service_id: newClientForm.service_id,
+              date: newClientForm.date,
+              time: newClientForm.time,
+              language: newClientForm.language
+            })
+              .then(() => {
+                setShowAddClientModal(false);
+                setShowSuccess(createBookingForClient ? 'Client and booking created successfully!' : 'Client created successfully!');
+                setCreateBookingForClient(false);
+                setNewClientForm({
+                  name: '',
+                  phone: '',
+                  email: '',
+                  service_id: '',
+                  date: '',
+                  time: '',
+                  language: 'en'
+                });
+                // Refresh clients list
+                if (activeTab === 'Clients') {
+                  api.get('/api/clients')
+                    .then((clientsData: ClientSummary[]) => {
+                      setClients(clientsData);
+                    })
+                    .catch((err) => {
+                      if (import.meta.env.DEV) console.error('Error refreshing clients:', err);
+                    });
+                }
+                setTimeout(() => setShowSuccess(null), 2000);
+              })
+              .catch((err) => {
+                setError(err.message || 'Failed to create client');
+              });
+          }} className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Name *</label>
+              <input
+                type="text"
+                required
+                value={newClientForm.name}
+                onChange={(e) => setNewClientForm({ ...newClientForm, name: e.target.value })}
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-accent focus:border-transparent"
+                placeholder="Client name"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Phone *</label>
+              <input
+                type="tel"
+                required
+                value={newClientForm.phone}
+                onChange={(e) => setNewClientForm({ ...newClientForm, phone: e.target.value })}
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-accent focus:border-transparent"
+                placeholder="Phone number"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
+              <input
+                type="email"
+                value={newClientForm.email}
+                onChange={(e) => setNewClientForm({ ...newClientForm, email: e.target.value })}
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-accent focus:border-transparent"
+                placeholder="Email address (optional)"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Language</label>
+              <select
+                value={newClientForm.language}
+                onChange={(e) => setNewClientForm({ ...newClientForm, language: e.target.value })}
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-accent focus:border-transparent"
+              >
+                <option value="en">English</option>
+                <option value="he">Hebrew</option>
+              </select>
+            </div>
+            <div className="flex items-center gap-2 mb-2">
+              <input
+                type="checkbox"
+                id="createBooking"
+                checked={createBookingForClient}
+                onChange={(e) => setCreateBookingForClient(e.target.checked)}
+                className="w-4 h-4 text-pink-accent border-gray-300 rounded focus:ring-pink-accent"
+              />
+              <label htmlFor="createBooking" className="text-sm font-medium text-gray-700">
+                This is a confirmed appointment (uncheck if tentative)
+              </label>
+            </div>
+            <div className="space-y-4 bg-baby-blue/10 p-4 rounded-lg">
+              <p className="text-sm text-gray-600 mb-2">A booking is required to create a client record</p>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Service *</label>
+                <select
+                  required
+                  value={newClientForm.service_id}
+                  onChange={(e) => setNewClientForm({ ...newClientForm, service_id: e.target.value })}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-accent focus:border-transparent"
+                >
+                  <option value="">Select a service</option>
+                  {mainServices.map((service) => (
+                    <option key={service.id} value={service.id}>
+                      {service.name} - {formatPrice(service.price)}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Date *</label>
+                <input
+                  type="date"
+                  required
+                  value={newClientForm.date}
+                  onChange={(e) => setNewClientForm({ ...newClientForm, date: e.target.value })}
+                  min={format(new Date(), 'yyyy-MM-dd')}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-accent focus:border-transparent"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Time *</label>
+                <input
+                  type="time"
+                  required
+                  value={newClientForm.time}
+                  onChange={(e) => setNewClientForm({ ...newClientForm, time: e.target.value })}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-accent focus:border-transparent"
+                />
+              </div>
+            </div>
+            <div className="flex gap-3 pt-4">
+              <button
+                type="button"
+                onClick={() => {
+                  setShowAddClientModal(false);
+                  setCreateBookingForClient(false);
+                  setNewClientForm({
+                    name: '',
+                    phone: '',
+                    email: '',
+                    service_id: '',
+                    date: '',
+                    time: '',
+                    language: 'en'
+                  });
+                }}
+                className="flex-1 bg-gray-200 text-gray-700 px-6 py-3 rounded-xl font-medium hover:bg-gray-300 transition"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                className="flex-1 bg-pink-accent text-white px-6 py-3 rounded-xl font-medium hover:bg-pink-accent/90 transition"
+              >
+                {createBookingForClient ? 'Create Client & Booking' : 'Create Client'}
+              </button>
+            </div>
+          </form>
+        </div>
+      </Modal>
+
+      {/* Client Details Modal */}
+      <Modal isOpen={showClientDetailsModal} onClose={() => {
+        setShowClientDetailsModal(false);
+        setSelectedClient(null);
+        setIsEditingClient(false);
+      }}>
+        <div className="w-full max-w-4xl mx-auto max-h-[90vh] overflow-y-auto">
+          {selectedClient && (
+            <div className="space-y-6">
+              <div className="flex items-center justify-between mb-6">
+                <h2 className="text-2xl font-bold text-gray-800">Client Details</h2>
+                <div className="flex items-center gap-2">
+                  {!isEditingClient ? (
+                    <button
+                      onClick={() => {
+                        setIsEditingClient(true);
+                        setEditingClientForm({
+                          name: selectedClient.name,
+                          email: selectedClient.email || '',
+                          phone: selectedClient.phone
+                        });
+                      }}
+                      className="text-pink-accent hover:text-pink-accent/80 transition flex items-center gap-2 px-4 py-2 rounded-lg hover:bg-pink-50"
+                    >
+                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                      </svg>
+                      Edit
+                    </button>
+                  ) : null}
+                  <button
+                    onClick={() => {
+                      setShowClientDetailsModal(false);
+                      setSelectedClient(null);
+                      setIsEditingClient(false);
+                    }}
+                    className="text-gray-500 hover:text-gray-700 transition"
+                  >
+                    <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </button>
+                </div>
+              </div>
+
+              {/* Client Info Card */}
+              <div className="bg-white rounded-2xl p-6 shadow-soft">
+                {isEditingClient ? (
+                  <div className="space-y-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">Name</label>
+                      <input
+                        type="text"
+                        value={editingClientForm.name}
+                        onChange={(e) => setEditingClientForm({ ...editingClientForm, name: e.target.value })}
+                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:border-pink-accent focus:outline-none"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">Email</label>
+                      <input
+                        type="email"
+                        value={editingClientForm.email}
+                        onChange={(e) => setEditingClientForm({ ...editingClientForm, email: e.target.value })}
+                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:border-pink-accent focus:outline-none"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">Phone</label>
+                      <input
+                        type="text"
+                        value={editingClientForm.phone}
+                        onChange={(e) => setEditingClientForm({ ...editingClientForm, phone: e.target.value })}
+                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:border-pink-accent focus:outline-none"
+                        placeholder="Phone number"
+                      />
+                      <p className="text-xs text-gray-500 mt-1">Changing phone number will update all associated bookings</p>
+                    </div>
+                    <div className="flex gap-3 pt-4">
+                      <button
+                        onClick={async () => {
+                          try {
+                            if (!editingClientForm.phone || editingClientForm.phone.trim().length === 0) {
+                              setError('Phone number is required');
+                              return;
+                            }
+                            
+                            const oldPhone = selectedClient.phone;
+                            const newPhone = editingClientForm.phone.trim();
+                            
+                            await api.put(`/api/clients/${encodeURIComponent(oldPhone)}`, {
+                              name: editingClientForm.name,
+                              email: editingClientForm.email,
+                              newPhone: newPhone
+                            });
+                            
+                            // Refresh client data using the new phone number
+                            const updatedClient = await api.get(`/api/clients/${encodeURIComponent(newPhone)}`);
+                            setSelectedClient(updatedClient);
+                            setIsEditingClient(false);
+                            
+                            // Refresh clients list
+                            const clientsData = await api.get('/api/clients');
+                            setClients(clientsData);
+                            setError('');
+                          } catch (err: any) {
+                            if (import.meta.env.DEV) console.error('Error updating client:', err);
+                            setError(err.message || 'Failed to update client');
+                          }
+                        }}
+                        className="flex-1 bg-pink-accent text-white px-6 py-3 rounded-lg hover:bg-pink-accent/90 transition font-medium"
+                      >
+                        Save Changes
+                      </button>
+                      <button
+                        onClick={() => {
+                          setIsEditingClient(false);
+                          setEditingClientForm({ name: '', email: '', phone: '' });
+                        }}
+                        className="flex-1 bg-gray-200 text-gray-800 px-6 py-3 rounded-lg hover:bg-gray-300 transition font-medium"
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
+                    <div>
+                      <h2 className="text-2xl font-bold text-pink-accent">{selectedClient.name}</h2>
+                      <div className="mt-2 space-y-1 text-gray-600">
+                        <p className="flex items-center gap-2">
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
+                          </svg>
+                          {selectedClient.phone}
+                        </p>
+                        {selectedClient.email && (
+                          <p className="flex items-center gap-2">
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                            </svg>
+                            {selectedClient.email}
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Statistics */}
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-6">
+                  <div className="bg-baby-blue/10 rounded-xl p-4">
+                    <p className="text-sm text-gray-600">Total Bookings</p>
+                    <p className="text-2xl font-bold text-pink-accent">{selectedClient.totalBookings}</p>
+                  </div>
+                  <div className="bg-baby-blue/10 rounded-xl p-4">
+                    <p className="text-sm text-gray-600">Total Spent</p>
+                    <p className="text-2xl font-bold text-pink-accent">{formatCurrency(selectedClient.totalSpent)}</p>
+                  </div>
+                  <div className="bg-baby-blue/10 rounded-xl p-4">
+                    <p className="text-sm text-gray-600">Avg Booking</p>
+                    <p className="text-2xl font-bold text-pink-accent">{formatCurrency(selectedClient.averageBookingValue)}</p>
+                  </div>
+                  <div className="bg-baby-blue/10 rounded-xl p-4">
+                    <p className="text-sm text-gray-600">Last Visit</p>
+                    <p className="text-lg font-semibold text-gray-700">
+                      {selectedClient.lastVisit ? format(new Date(selectedClient.lastVisit), 'MMM d, yyyy') : 'Never'}
+                    </p>
+                  </div>
+                </div>
+
+                {/* Bookings History */}
+                <div>
+                  <h3 className="text-xl font-bold text-gray-800 mb-4">Booking History</h3>
+                  <div className="space-y-4 max-h-96 overflow-y-auto">
+                    {selectedClient.bookings.length === 0 ? (
+                      <p className="text-gray-500 text-center py-8">No bookings found</p>
+                    ) : (
+                      selectedClient.bookings.map((booking) => {
+                        const isCancelled = booking.status === 'cancelled';
+                        const appointmentDateTime = new Date(`${booking.date}T${booking.time}`);
+                        const cancelledAt = booking.cancelled_at ? new Date(booking.cancelled_at) : null;
+                        const hoursBeforeAppointment = cancelledAt 
+                          ? Math.round((appointmentDateTime.getTime() - cancelledAt.getTime()) / (1000 * 60 * 60) * 10) / 10
+                          : null;
+
+                        return (
+                          <div
+                            key={booking.id}
+                            className={`border rounded-xl p-4 ${isCancelled ? 'bg-gray-50 border-gray-300 opacity-75' : 'bg-white border-baby-blue/30'}`}
+                          >
+                            <div className="flex flex-col sm:flex-row justify-between items-start gap-4">
+                              <div className="flex-1">
+                                <div className="flex items-center gap-3 mb-2">
+                                  <h4 className="font-semibold text-lg text-gray-800">{booking.service_name}</h4>
+                                  {isCancelled ? (
+                                    <span className="bg-red-100 text-red-700 px-2 py-1 rounded-full text-xs font-semibold">
+                                      Cancelled
+                                    </span>
+                                  ) : (
+                                    <span className="bg-green-100 text-green-700 px-2 py-1 rounded-full text-xs font-semibold">
+                                      Active
+                                    </span>
+                                  )}
+                                </div>
+                                <div className="space-y-1 text-sm text-gray-600">
+                                  <p>
+                                    <span className="font-medium">Date & Time:</span> {format(new Date(booking.date), 'MMM d, yyyy')} at {booking.time}
+                                  </p>
+                                  {booking.booking_reference && (
+                                    <p>
+                                      <span className="font-medium">Reference:</span> {booking.booking_reference}
+                                    </p>
+                                  )}
+                                  {booking.addons && booking.addons.length > 0 && (
+                                    <p>
+                                      <span className="font-medium">Add-ons:</span> {booking.addons.map(a => a.name).join(', ')}
+                                    </p>
+                                  )}
+                                  <p>
+                                    <span className="font-medium">Price:</span> {formatCurrency(getNumericPrice(booking.price || 0) + (booking.addons?.reduce((sum, a) => sum + getNumericPrice(a.price), 0) || 0))}
+                                  </p>
+                                  {isCancelled && cancelledAt && (
+                                    <div className="mt-2 pt-2 border-t border-gray-200">
+                                      <p className="text-red-600">
+                                        <span className="font-medium">Cancelled:</span> {format(cancelledAt, 'MMM d, yyyy HH:mm')}
+                                      </p>
+                                      {hoursBeforeAppointment !== null && (
+                                        <p className="text-red-600">
+                                          <span className="font-medium">Hours before appointment:</span> {hoursBeforeAppointment}h
+                                        </p>
+                                      )}
+                                    </div>
+                                  )}
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })
+                    )}
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      </Modal>
+
       {/* Booking Details Modal */}
       {showBookingDetailsModal && selectedBooking && (
         <Modal isOpen={showBookingDetailsModal} onClose={() => setShowBookingDetailsModal(false)}>
           <div className="max-w-6xl mx-auto">{/* Wider modal container */}
-            <div className="flex items-center justify-between mb-6">
-              <h2 className="text-3xl font-bold text-gray-800">Booking Details</h2>
-              <button 
-                onClick={() => setShowBookingDetailsModal(false)}
-                className="text-gray-500 hover:text-gray-700 transition"
-              >
-                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                </svg>
-              </button>
+            <div className="flex items-center justify-between mb-6 pb-4 border-b border-gray-200">
+              <h2 className="text-2xl sm:text-3xl font-bold text-gray-800">Booking Details</h2>
+              <div className="flex items-center gap-2">
+                {!isEditingBookingDetails ? (
+                  <button
+                    onClick={() => {
+                      setIsEditingBookingDetails(true);
+                      const bookingDate = new Date(selectedBooking.date);
+                      const formattedDate = bookingDate.toISOString().split('T')[0];
+                      const timeWithoutSeconds = selectedBooking.time.split(':').slice(0, 2).join(':');
+                      
+                      // Initialize quantities for individual nail add-ons
+                      // Count occurrences of each addon ID (for individual nails with quantity > 1)
+                      const addonIdCounts: Record<string, number> = {};
+                      const uniqueAddonIds: string[] = [];
+                      selectedBooking.addons?.forEach((addon: any) => {
+                        if (addon && addon.id) {
+                          if (!addonIdCounts[addon.id]) {
+                            uniqueAddonIds.push(addon.id);
+                            addonIdCounts[addon.id] = 0;
+                          }
+                          addonIdCounts[addon.id]++;
+                        }
+                      });
+                      
+                      const initialQuantities: Record<string, number> = {};
+                      uniqueAddonIds.forEach(addonId => {
+                        const addon = addOns.find(a => a.id === addonId);
+                        if (addon?.name?.toLowerCase().includes('individual nail')) {
+                          initialQuantities[addonId] = addonIdCounts[addonId] || 1;
+                        }
+                      });
+                      
+                      setEditingBookingForm({
+                        service_id: selectedBooking.service_id || '',
+                        date: formattedDate,
+                        time: timeWithoutSeconds,
+                        price: String(selectedBooking.price || ''),
+                        addon_ids: uniqueAddonIds,
+                        customAddonPrices: selectedBooking.addons?.reduce((acc: any, addon: any) => {
+                          if (addon.name?.toLowerCase().includes('custom')) {
+                            acc[addon.id] = String(addon.price || '');
+                          }
+                          return acc;
+                        }, {}) || {},
+                        addonQuantities: initialQuantities
+                      });
+                    }}
+                    className="text-pink-accent hover:text-pink-accent/80 transition flex items-center gap-2 px-4 py-2 rounded-lg hover:bg-pink-50"
+                  >
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                    </svg>
+                    Edit
+                  </button>
+                ) : null}
+                <button 
+                  onClick={() => {
+                    setShowBookingDetailsModal(false);
+                    setIsEditingBookingDetails(false);
+                  }}
+                  className="text-gray-500 hover:text-gray-700 active:opacity-70 transition-opacity duration-200 p-2 rounded-lg hover:bg-gray-100 touch-manipulation"
+                  aria-label="Close modal"
+                >
+                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
             </div>
 
-            <div className="bg-gradient-to-br from-baby-blue/10 to-pink-accent/10 rounded-2xl p-4 sm:p-6 mb-6">
-              <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 mb-6">
-                <div className="bg-pink-accent/20 text-pink-accent px-4 py-2 rounded-xl font-bold text-lg">
+            <div className="bg-gradient-to-br from-baby-blue/10 to-pink-accent/10 rounded-2xl p-4 sm:p-6 mb-6 border border-pink-accent/20">
+              <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 sm:gap-6">
+                <div className="bg-pink-accent text-white px-5 py-3 rounded-xl font-bold text-lg sm:text-xl shadow-md min-w-[100px] text-center">
                   {selectedBooking.time}
                 </div>
                 <div className="flex-1">
-                  <h3 className="text-xl font-bold text-gray-800">{selectedBooking.client_name}</h3>
-                  <p className="text-gray-600">{new Date(selectedBooking.date).toLocaleDateString('en-US', { 
+                  {selectedBooking.client_phone ? (
+                    <h3 
+                      onClick={async () => {
+                        try {
+                          setShowBookingDetailsModal(false);
+                          setSelectedClient({
+                            phone: selectedBooking.client_phone,
+                            name: selectedBooking.client_name,
+                            email: selectedBooking.client_email,
+                            totalBookings: 0,
+                            totalSpent: 0,
+                            averageBookingValue: 0,
+                            bookings: []
+                          } as Client);
+                          setShowClientDetailsModal(true);
+                          const clientData = await api.get(`/api/clients/${encodeURIComponent(selectedBooking.client_phone)}`);
+                          setSelectedClient(clientData);
+                        } catch (err: any) {
+                          if (import.meta.env.DEV) console.error('Error fetching client details:', err);
+                          setError(err.message || 'Failed to load client details');
+                          setShowClientDetailsModal(false);
+                        }
+                      }}
+                      className="text-xl sm:text-2xl font-bold text-pink-accent mb-1 cursor-pointer hover:text-pink-accent/80 transition hover:underline"
+                    >
+                      {selectedBooking.client_name}
+                    </h3>
+                  ) : (
+                    <h3 className="text-xl sm:text-2xl font-bold text-gray-800 mb-1">{selectedBooking.client_name}</h3>
+                  )}
+                  <p className="text-gray-600 text-sm sm:text-base">{new Date(selectedBooking.date).toLocaleDateString('en-US', { 
                     weekday: 'long', 
                     year: 'numeric', 
                     month: 'long', 
                     day: 'numeric' 
                   })}</p>
+                  {selectedBooking.booking_reference && (
+                    <p className="text-xs sm:text-sm text-gray-500 mt-1 font-mono">Ref: {selectedBooking.booking_reference}</p>
+                  )}
                 </div>
               </div>
+            </div>
 
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6 mb-6">
                 {/* Client Information */}
-                <div className="bg-white/70 rounded-xl p-4">
-                  <h4 className="font-bold text-gray-800 mb-3 flex items-center gap-2">
-                    <svg className="w-5 h-5 text-baby-blue" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <div className="bg-white/80 rounded-xl p-4 sm:p-5 border border-gray-200/50 shadow-sm">
+                  <h4 className="font-bold text-gray-800 mb-4 flex items-center gap-2 text-base sm:text-lg">
+                    <svg className="w-5 h-5 text-baby-blue flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
                     </svg>
                     Client Information
                   </h4>
-                  <div className="space-y-3 text-sm">
-                    <div>
-                      <p className="text-gray-500 font-medium">Name</p>
-                      <p className="text-gray-800">{selectedBooking.client_name}</p>
+                  <div className="space-y-3 text-sm sm:text-base">
+                    <div className="pb-2 border-b border-gray-100">
+                      <p className="text-gray-500 font-medium text-xs sm:text-sm mb-1">Name</p>
+                      {selectedBooking.client_phone ? (
+                        <p 
+                          onClick={async () => {
+                            try {
+                              setShowBookingDetailsModal(false);
+                              setSelectedClient({
+                                phone: selectedBooking.client_phone,
+                                name: selectedBooking.client_name,
+                                email: selectedBooking.client_email,
+                                totalBookings: 0,
+                                totalSpent: 0,
+                                averageBookingValue: 0,
+                                bookings: []
+                              } as Client);
+                              setShowClientDetailsModal(true);
+                              const clientData = await api.get(`/api/clients/${encodeURIComponent(selectedBooking.client_phone)}`);
+                              setSelectedClient(clientData);
+                            } catch (err: any) {
+                              if (import.meta.env.DEV) console.error('Error fetching client details:', err);
+                              setError(err.message || 'Failed to load client details');
+                              setShowClientDetailsModal(false);
+                            }
+                          }}
+                          className="text-gray-800 font-medium cursor-pointer hover:text-pink-accent transition hover:underline"
+                        >
+                          {selectedBooking.client_name}
+                        </p>
+                      ) : (
+                        <p className="text-gray-800 font-medium">{selectedBooking.client_name}</p>
+                      )}
                     </div>
-                    <div>
-                      <p className="text-gray-500 font-medium">Email</p>
+                    <div className="pb-2 border-b border-gray-100">
+                      <p className="text-gray-500 font-medium text-xs sm:text-sm mb-1">Email</p>
                       <p className="text-gray-800 break-all">{selectedBooking.client_email}</p>
                     </div>
-                    <div>
-                      <p className="text-gray-500 font-medium">Phone</p>
+                    <div className="pb-2 border-b border-gray-100">
+                      <p className="text-gray-500 font-medium text-xs sm:text-sm mb-1">Phone</p>
                       <p className="text-gray-800">{selectedBooking.client_phone || 'Not provided'}</p>
                     </div>
                     <div>
-                      <p className="text-gray-500 font-medium">Language</p>
-                      <p className="text-gray-800">{selectedBooking.language === 'en' ? 'English' : 'Hebrew'}</p>
+                      <p className="text-gray-500 font-medium text-xs sm:text-sm mb-1">Language</p>
+                      <p className="text-gray-800">{selectedBooking.language === 'en' ? 'English' : selectedBooking.language === 'he' ? 'Hebrew' : selectedBooking.language || 'Not specified'}</p>
                     </div>
                   </div>
                 </div>
 
                 {/* Service Information */}
-                <div className="bg-white/70 rounded-xl p-4">
-                  <h4 className="font-bold text-gray-800 mb-3 flex items-center gap-2">
-                    <svg className="w-5 h-5 text-pink-accent" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <div className="bg-white/80 rounded-xl p-4 sm:p-5 border border-gray-200/50 shadow-sm">
+                  <h4 className="font-bold text-gray-800 mb-4 flex items-center gap-2 text-base sm:text-lg">
+                    <svg className="w-5 h-5 text-pink-accent flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 9.586V5L8 4z" />
                     </svg>
                     Service Details
                   </h4>
-                  <div className="space-y-3 text-sm">
-                    <div>
-                      <p className="text-gray-500 font-medium">Service</p>
-                      <p className="text-gray-800">{selectedBooking.service_name || selectedBooking.service_id}</p>
+                  {isEditingBookingDetails ? (
+                    <div className="space-y-4">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">Service *</label>
+                        <select
+                          value={editingBookingForm.service_id}
+                          onChange={(e) => {
+                            const selectedService = mainServices.find(s => s.id === e.target.value);
+                            setEditingBookingForm({
+                              ...editingBookingForm,
+                              service_id: e.target.value,
+                              price: selectedService ? String(selectedService.price) : editingBookingForm.price
+                            });
+                          }}
+                          className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-accent focus:border-transparent"
+                        >
+                          <option value="">Select a service</option>
+                          {mainServices.map((service) => (
+                            <option key={service.id} value={service.id}>
+                              {service.name} - {formatPrice(service.price)}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                      <div className="grid grid-cols-2 gap-4">
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-2">Date *</label>
+                          <input
+                            type="date"
+                            value={editingBookingForm.date}
+                            onChange={(e) => setEditingBookingForm({ ...editingBookingForm, date: e.target.value })}
+                            min={format(new Date(), 'yyyy-MM-dd')}
+                            className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-accent focus:border-transparent"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-2">Time *</label>
+                          <input
+                            type="time"
+                            value={editingBookingForm.time}
+                            onChange={(e) => setEditingBookingForm({ ...editingBookingForm, time: e.target.value })}
+                            className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-accent focus:border-transparent"
+                          />
+                        </div>
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">Base Price (₪) *</label>
+                        <input
+                          type="number"
+                          step="0.01"
+                          value={editingBookingForm.price}
+                          onChange={(e) => setEditingBookingForm({ ...editingBookingForm, price: e.target.value })}
+                          className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-accent focus:border-transparent"
+                          placeholder="e.g. 120.00"
+                        />
+                      </div>
+                      {editingBookingForm.service_id && (() => {
+                        const selectedService = mainServices.find(s => s.id === editingBookingForm.service_id);
+                        return selectedService ? (
+                          <div className="text-sm text-gray-600">
+                            <p>Duration: {formatDuration(selectedService.duration)}</p>
+                          </div>
+                        ) : null;
+                      })()}
                     </div>
-                    <div>
-                      <p className="text-gray-500 font-medium">Duration</p>
-                      <p className="text-gray-800">{selectedBooking.service_duration ? `${selectedBooking.service_duration} minutes` : 'Not specified'}</p>
+                  ) : (
+                    <div className="space-y-3 text-sm sm:text-base">
+                      <div className="pb-2 border-b border-gray-100">
+                        <p className="text-gray-500 font-medium text-xs sm:text-sm mb-1">Service</p>
+                        <p className="text-gray-800 font-medium">{selectedBooking.service_name || selectedBooking.service_id}</p>
+                      </div>
+                      <div className="pb-2 border-b border-gray-100">
+                        <p className="text-gray-500 font-medium text-xs sm:text-sm mb-1">Duration</p>
+                        <p className="text-gray-800">{selectedBooking.service_duration ? formatDuration(selectedBooking.service_duration) : 'Not specified'}</p>
+                      </div>
+                      <div className="pb-2 border-b border-gray-100">
+                        <p className="text-gray-500 font-medium text-xs sm:text-sm mb-1">Base Price</p>
+                        <p className="text-pink-accent font-bold text-lg sm:text-xl">{formatCurrency(getNumericPrice(selectedBooking.price))}</p>
+                      </div>
+                      <div>
+                        <p className="text-gray-500 font-medium text-xs sm:text-sm mb-1">Date & Time</p>
+                        <p className="text-gray-800">{selectedBooking.time} • {new Date(selectedBooking.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</p>
+                      </div>
                     </div>
-                    <div>
-                      <p className="text-gray-500 font-medium">Base Price</p>
-                      <p className="text-pink-accent font-bold text-lg">₪{Number(selectedBooking.price || 0).toFixed(2)}</p>
-                    </div>
-                    <div>
-                      <p className="text-gray-500 font-medium">Date & Time</p>
-                      <p className="text-gray-800">{selectedBooking.time} • {new Date(selectedBooking.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</p>
-                    </div>
-                  </div>
+                  )}
                 </div>
               </div>
 
               {/* Add-ons Section */}
-              {selectedBooking.addons && selectedBooking.addons.length > 0 && (
-                <div className="bg-white/70 rounded-xl p-4 mb-6">
-                  <h4 className="font-bold text-gray-800 mb-3 flex items-center gap-2">
-                    <svg className="w-5 h-5 text-purple-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
-                    </svg>
-                    Add-ons ({selectedBooking.addons.length})
-                  </h4>
-                  <div className="space-y-3">
-                    {selectedBooking.addons.map((addon: any, index: number) => (
-                      <div key={index} className="flex justify-between items-center bg-white/50 rounded-lg p-3">
-                        <div>
-                          <p className="font-medium text-gray-800">{addon.name}</p>
-                          {addon.duration && <p className="text-sm text-gray-600">{addon.duration} minutes</p>}
-                        </div>
-                        <p className="font-bold text-purple-600">₪{Number(addon.price || 0).toFixed(2)}</p>
-                      </div>
-                    ))}
-                    <div className="border-t border-gray-200 pt-3 mt-3">
-                      <div className="flex justify-between items-center">
-                        <p className="font-bold text-gray-800">Total Add-ons:</p>
-                        <p className="font-bold text-purple-600">₪{selectedBooking.addons.reduce((sum: number, addon: any) => sum + Number(addon.price || 0), 0).toFixed(2)}</p>
+              <div className="bg-white/80 rounded-xl p-4 sm:p-6 mb-6 border border-purple-200/50 shadow-sm">
+                <h4 className="font-bold text-gray-800 mb-4 flex items-center gap-2 text-base sm:text-lg">
+                  <svg className="w-5 h-5 text-purple-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                  </svg>
+                  Add-ons ({isEditingBookingDetails ? editingBookingForm.addon_ids.length : (selectedBooking.addons?.length || 0)})
+                </h4>
+                {isEditingBookingDetails ? (
+                  <div className="space-y-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">Select Add-ons</label>
+                      <div className="space-y-2 max-h-60 overflow-y-auto">
+                        {addOns.map((addon) => {
+                          const isSelected = editingBookingForm.addon_ids.includes(addon.id);
+                          const isCustom = addon.name?.toLowerCase().includes('custom');
+                          const isIndividualNail = addon.name?.toLowerCase().includes('individual nail');
+                          const quantity = editingBookingForm.addonQuantities[addon.id] || (isSelected ? 1 : 0);
+                          
+                          return (
+                            <div key={addon.id} className="flex items-center gap-3 p-3 border border-gray-200 rounded-lg hover:bg-gray-50">
+                              <input
+                                type="checkbox"
+                                checked={isSelected}
+                                onChange={(e) => {
+                                  if (e.target.checked) {
+                                    setEditingBookingForm({
+                                      ...editingBookingForm,
+                                      addon_ids: [...editingBookingForm.addon_ids, addon.id],
+                                      customAddonPrices: isCustom ? {
+                                        ...editingBookingForm.customAddonPrices,
+                                        [addon.id]: String(addon.price || '')
+                                      } : editingBookingForm.customAddonPrices,
+                                      addonQuantities: isIndividualNail ? {
+                                        ...editingBookingForm.addonQuantities,
+                                        [addon.id]: 1
+                                      } : editingBookingForm.addonQuantities
+                                    });
+                                  } else {
+                                    setEditingBookingForm({
+                                      ...editingBookingForm,
+                                      addon_ids: editingBookingForm.addon_ids.filter(id => id !== addon.id),
+                                      customAddonPrices: isCustom ? (() => {
+                                        const newPrices = { ...editingBookingForm.customAddonPrices };
+                                        delete newPrices[addon.id];
+                                        return newPrices;
+                                      })() : editingBookingForm.customAddonPrices,
+                                      addonQuantities: isIndividualNail ? (() => {
+                                        const newQuantities = { ...editingBookingForm.addonQuantities };
+                                        delete newQuantities[addon.id];
+                                        return newQuantities;
+                                      })() : editingBookingForm.addonQuantities
+                                    });
+                                  }
+                                }}
+                                className="w-4 h-4 text-purple-600 border-gray-300 rounded focus:ring-purple-500"
+                              />
+                              <div className="flex-1">
+                                <label className="font-medium text-gray-800 cursor-pointer">{addon.name}</label>
+                                {addon.duration > 0 && (
+                                  <p className="text-xs text-gray-600">{formatDuration(addon.duration)}</p>
+                                )}
+                              </div>
+                              {isSelected && isIndividualNail ? (
+                                <div className="flex items-center gap-2">
+                                  <span className="text-sm text-gray-600">Quantity:</span>
+                                  <input
+                                    type="number"
+                                    min="1"
+                                    max="20"
+                                    value={quantity}
+                                    onChange={(e) => {
+                                      const qty = Math.max(1, Math.min(20, parseInt(e.target.value) || 1));
+                                      setEditingBookingForm({
+                                        ...editingBookingForm,
+                                        addonQuantities: {
+                                          ...editingBookingForm.addonQuantities,
+                                          [addon.id]: qty
+                                        }
+                                      });
+                                    }}
+                                    className="w-20 p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent text-sm"
+                                    placeholder="Qty"
+                                  />
+                                  <span className="text-sm text-gray-600">× {formatPrice(addon.price)} = {formatPrice(getNumericPrice(addon.price) * quantity)}</span>
+                                </div>
+                              ) : isSelected && isCustom ? (
+                                <div className="flex items-center gap-2">
+                                  <span className="text-sm text-gray-600">Price:</span>
+                                  <input
+                                    type="number"
+                                    step="0.01"
+                                    value={editingBookingForm.customAddonPrices[addon.id] || ''}
+                                    onChange={(e) => setEditingBookingForm({
+                                      ...editingBookingForm,
+                                      customAddonPrices: {
+                                        ...editingBookingForm.customAddonPrices,
+                                        [addon.id]: e.target.value
+                                      }
+                                    })}
+                                    className="w-24 p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent text-sm"
+                                    placeholder="Price"
+                                  />
+                                  <span className="text-sm text-gray-600">₪</span>
+                                </div>
+                              ) : (
+                                <div className="text-right">
+                                  <p className="font-semibold text-purple-600">{formatPrice(addon.price)}</p>
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })}
                       </div>
                     </div>
+                    {editingBookingForm.addon_ids.length > 0 && (
+                      <div className="border-t-2 border-gray-300 pt-4">
+                        <div className="flex justify-between items-center">
+                          <p className="font-bold text-gray-800 text-base">Total Add-ons:</p>
+                          <p className="font-bold text-purple-600 text-lg">
+                            {formatCurrency(editingBookingForm.addon_ids.reduce((sum, addonId) => {
+                              const addon = addOns.find(a => a.id === addonId);
+                              if (!addon) return sum;
+                              const isIndividualNail = addon.name?.toLowerCase().includes('individual nail');
+                              const quantity = editingBookingForm.addonQuantities[addonId] || 1;
+                              
+                              if (addon.name?.toLowerCase().includes('custom')) {
+                                return sum + getNumericPrice(editingBookingForm.customAddonPrices[addonId] || '0');
+                              }
+                              if (isIndividualNail) {
+                                return sum + (getNumericPrice(addon.price) * quantity);
+                              }
+                              return sum + getNumericPrice(addon.price);
+                            }, 0))}
+                          </p>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                ) : selectedBooking.addons && selectedBooking.addons.length > 0 ? (
+                  <div className="space-y-3">
+                    {selectedBooking.addons.map((addon: any, index: number) => {
+                      const addonPrice = addon.price !== undefined && addon.price !== null ? addon.price : 0;
+                      return (
+                        <div key={index} className="flex justify-between items-start sm:items-center bg-white/80 rounded-lg p-3 sm:p-4 border border-gray-200/50 hover:border-purple-300 transition-colors">
+                          <div className="flex-1">
+                            <p className="font-semibold text-gray-800 text-base">{addon.name}</p>
+                            {addon.duration && addon.duration > 0 && (
+                              <p className="text-sm text-gray-600 mt-1">{addon.duration} minutes</p>
+                            )}
+                            {addon.name?.toLowerCase().includes('custom') && selectedBooking.custom_request && (
+                              <p className="text-xs text-gray-500 mt-1 italic">Custom request included</p>
+                            )}
+                          </div>
+                          <div className="ml-4 text-right">
+                            <p className="font-bold text-purple-600 text-lg">{formatPrice(addonPrice)}</p>
+                          </div>
+                        </div>
+                      );
+                    })}
+                    <div className="border-t-2 border-gray-300 pt-4 mt-4">
+                      <div className="flex justify-between items-center">
+                        <p className="font-bold text-gray-800 text-base">Total Add-ons:</p>
+                        <p className="font-bold text-purple-600 text-lg">
+                          {formatCurrency(selectedBooking.addons.reduce((sum: number, addon: any) => sum + getNumericPrice(addon.price), 0))}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  <p className="text-gray-500 text-center py-4">No add-ons selected</p>
+                )}
+              </div>
+
+              {/* Custom Request Section */}
+              {(selectedBooking.custom_request || selectedBooking.custom_image) && (
+                <div className="bg-gradient-to-br from-yellow-50 to-amber-50 border-2 border-yellow-300 rounded-xl p-4 sm:p-6 mb-6 shadow-sm">
+                  <h4 className="font-bold text-gray-800 mb-4 flex items-center gap-2 text-base sm:text-lg">
+                    <svg className="w-5 h-5 text-yellow-600 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                    </svg>
+                    Custom Request (Admin Only)
+                  </h4>
+                  <div className="space-y-4">
+                    {selectedBooking.custom_request && (
+                      <div className="bg-white rounded-lg p-4 border border-yellow-200 shadow-sm">
+                        <p className="text-xs sm:text-sm font-semibold text-gray-600 mb-2 uppercase tracking-wide">Request Details:</p>
+                        <p className="text-gray-800 whitespace-pre-wrap text-sm sm:text-base leading-relaxed">
+                          {selectedBooking.custom_request}
+                        </p>
+                      </div>
+                    )}
+                    {selectedBooking.custom_image && (
+                      <div className="bg-white rounded-lg p-4 border border-yellow-200 shadow-sm">
+                        <p className="text-xs sm:text-sm font-semibold text-gray-600 mb-3 uppercase tracking-wide">Attached Image:</p>
+                        <div className="flex justify-center">
+                          <img 
+                            src={selectedBooking.custom_image} 
+                            alt="Custom request reference" 
+                            className="max-w-full max-h-96 rounded-lg border-2 border-yellow-200 bg-white p-2 shadow-md object-contain"
+                          />
+                        </div>
+                      </div>
+                    )}
                   </div>
                 </div>
               )}
 
               {/* Pricing Summary */}
-              <div className="bg-white/70 rounded-xl p-4 mb-6">
-                <h4 className="font-bold text-gray-800 mb-3 flex items-center gap-2">
-                  <svg className="w-5 h-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <div className="bg-gradient-to-br from-green-50 to-white rounded-xl p-4 sm:p-6 mb-6 border border-green-200/50 shadow-sm">
+                <h4 className="font-bold text-gray-800 mb-4 flex items-center gap-2 text-base sm:text-lg">
+                  <svg className="w-5 h-5 text-green-600 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1" />
                   </svg>
                   Pricing Summary
                 </h4>
-                <div className="space-y-2 text-sm">
+                <div className="space-y-3 text-sm sm:text-base">
                   <div className="flex justify-between">
                     <span className="text-gray-600">Service Price:</span>
-                    <span className="text-gray-800">₪{Number(selectedBooking.price || 0).toFixed(2)}</span>
+                    <span className="text-gray-800 font-medium">
+                      {isEditingBookingDetails 
+                        ? formatCurrency(getNumericPrice(editingBookingForm.price || '0'))
+                        : formatCurrency(getNumericPrice(selectedBooking.price))
+                      }
+                    </span>
                   </div>
-                  {selectedBooking.addons && selectedBooking.addons.length > 0 && (
+                  {(isEditingBookingDetails ? editingBookingForm.addon_ids.length > 0 : (selectedBooking.addons && selectedBooking.addons.length > 0)) && (
                     <div className="flex justify-between">
                       <span className="text-gray-600">Add-ons:</span>
-                      <span className="text-gray-800">₪{selectedBooking.addons.reduce((sum: number, addon: any) => sum + Number(addon.price || 0), 0).toFixed(2)}</span>
+                      <span className="text-gray-800 font-medium">
+                        {isEditingBookingDetails
+                          ? formatCurrency(editingBookingForm.addon_ids.reduce((sum, addonId) => {
+                              const addon = addOns.find(a => a.id === addonId);
+                              if (!addon) return sum;
+                              if (addon.name?.toLowerCase().includes('custom')) {
+                                return sum + getNumericPrice(editingBookingForm.customAddonPrices[addonId] || '0');
+                              }
+                              return sum + getNumericPrice(addon.price);
+                            }, 0))
+                          : formatCurrency(selectedBooking.addons.reduce((sum: number, addon: any) => sum + getNumericPrice(addon.price), 0))
+                        }
+                      </span>
                     </div>
                   )}
-                  <div className="border-t border-gray-200 pt-2 mt-2">
+                  <div className="border-t-2 border-gray-300 pt-3 mt-3">
                     <div className="flex justify-between items-center">
-                      <span className="font-bold text-gray-800">Total Amount:</span>
-                      <span className="font-bold text-pink-accent text-lg">₪{(
-                        Number(selectedBooking.price || 0) + 
-                        (selectedBooking.addons?.reduce((sum: number, addon: any) => sum + Number(addon.price || 0), 0) || 0)
-                      ).toFixed(2)}</span>
+                      <span className="font-bold text-gray-800 text-base">Total Amount:</span>
+                      <span className="font-bold text-pink-accent text-xl">
+                        {isEditingBookingDetails
+                          ? formatCurrency(
+                              getNumericPrice(editingBookingForm.price || '0') +
+                              editingBookingForm.addon_ids.reduce((sum, addonId) => {
+                                const addon = addOns.find(a => a.id === addonId);
+                                if (!addon) return sum;
+                                const isIndividualNail = addon.name?.toLowerCase().includes('individual nail');
+                                const quantity = editingBookingForm.addonQuantities[addonId] || 1;
+                                
+                                if (addon.name?.toLowerCase().includes('custom')) {
+                                  return sum + getNumericPrice(editingBookingForm.customAddonPrices[addonId] || '0');
+                                }
+                                if (isIndividualNail) {
+                                  return sum + (getNumericPrice(addon.price) * quantity);
+                                }
+                                return sum + getNumericPrice(addon.price);
+                              }, 0)
+                            )
+                          : formatCurrency(
+                              getNumericPrice(selectedBooking.price) + 
+                              (selectedBooking.addons?.reduce((sum: number, addon: any) => sum + getNumericPrice(addon.price), 0) || 0)
+                            )
+                        }
+                      </span>
                     </div>
                   </div>
                 </div>
               </div>
 
               {/* Booking Metadata */}
-              <div className="bg-white/70 rounded-xl p-4">
-                <h4 className="font-bold text-gray-800 mb-3 flex items-center gap-2">
-                  <svg className="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <div className="bg-white/80 rounded-xl p-4 sm:p-5 border border-gray-200/50 shadow-sm">
+                <h4 className="font-bold text-gray-800 mb-4 flex items-center gap-2 text-base sm:text-lg">
+                  <svg className="w-5 h-5 text-gray-600 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                   </svg>
                   Booking Information
                 </h4>
-                <div className="grid md:grid-cols-2 gap-4 text-sm">
-                  <div>
-                    <p className="text-gray-500 font-medium">Booking ID</p>
-                    <p className="text-gray-800 font-mono">{selectedBooking.id}</p>
+                <div className="grid md:grid-cols-2 gap-4 text-sm sm:text-base">
+                  <div className="pb-3 border-b border-gray-100 md:border-b-0 md:border-r md:pr-4">
+                    <p className="text-gray-500 font-medium text-xs sm:text-sm mb-1">Booking Reference</p>
+                    <p className="text-gray-800 font-mono font-semibold text-base break-all">
+                      {selectedBooking.booking_reference || `ID: ${selectedBooking.id}`}
+                    </p>
                   </div>
-                  <div>
-                    <p className="text-gray-500 font-medium">Token</p>
-                    <p className="text-gray-800 font-mono break-all">{selectedBooking.token}</p>
-                  </div>
-                  {selectedBooking.google_event_id && (
-                    <div className="md:col-span-2">
-                      <p className="text-gray-500 font-medium">Calendar Event ID</p>
-                      <p className="text-gray-800 font-mono break-all">{selectedBooking.google_event_id}</p>
-                    </div>
-                  )}
-                  <div>
-                    <p className="text-gray-500 font-medium">Status</p>
+                  <div className="pb-3 border-b border-gray-100 md:border-b-0 md:pl-4">
+                    <p className="text-gray-500 font-medium text-xs sm:text-sm mb-1">Status</p>
                     <p className="text-gray-800">
                       {new Date(selectedBooking.date) < new Date() ? 
-                        <span className="text-gray-600 bg-gray-100 px-2 py-1 rounded-lg text-xs">Completed</span> : 
-                        <span className="text-green-600 bg-green-100 px-2 py-1 rounded-lg text-xs">Upcoming</span>
+                        <span className="inline-block text-gray-700 bg-gray-100 px-3 py-1.5 rounded-lg text-xs sm:text-sm font-medium">Completed</span> : 
+                        <span className="inline-block text-green-700 bg-green-100 px-3 py-1.5 rounded-lg text-xs sm:text-sm font-medium">Upcoming</span>
                       }
                     </p>
                   </div>
-                  <div>
-                    <p className="text-gray-500 font-medium">Booking Date</p>
+                  <div className="pb-3 border-b border-gray-100 md:border-b-0 md:border-r md:pr-4">
+                    <p className="text-gray-500 font-medium text-xs sm:text-sm mb-1">Token</p>
+                    <p className="text-gray-800 font-mono break-all text-xs sm:text-sm">{selectedBooking.token}</p>
+                  </div>
+                  <div className="pb-3 border-b border-gray-100 md:border-b-0 md:pl-4">
+                    <p className="text-gray-500 font-medium text-xs sm:text-sm mb-1">Booking Created</p>
                     <p className="text-gray-800">{new Date(selectedBooking.created_at || selectedBooking.date).toLocaleDateString('en-US', { 
                       month: 'short', 
                       day: 'numeric', 
                       year: 'numeric' 
                     })}</p>
                   </div>
+                  {selectedBooking.google_event_id && (
+                    <div className="md:col-span-2 pt-3 border-t border-gray-200">
+                      <p className="text-gray-500 font-medium text-xs sm:text-sm mb-1">Calendar Event ID</p>
+                      <p className="text-gray-800 font-mono break-all text-xs sm:text-sm">{selectedBooking.google_event_id}</p>
+                    </div>
+                  )}
                 </div>
               </div>
-            </div>
 
-            {/* Action Buttons */}
-            {!showPastBookings && (
-              <div className="flex flex-col sm:flex-row gap-3">
-                <button 
-                  onClick={() => {
-                    setShowBookingDetailsModal(false);
-                    openEditBookingModal(selectedBooking);
-                  }}
-                  className="flex-1 bg-baby-blue text-white px-6 py-3 rounded-xl font-medium hover:bg-baby-blue/80 transition flex items-center justify-center gap-2"
-                >
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                  </svg>
-                  Edit Booking
-                </button>
-                <button 
-                  onClick={() => {
-                    setShowBookingDetailsModal(false);
-                    onCancelBooking(selectedBooking.token);
-                  }}
-                  className="flex-1 bg-red-500 text-white px-6 py-3 rounded-xl font-medium hover:bg-red-600 transition flex items-center justify-center gap-2"
-                >
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                  </svg>
-                  Cancel Booking
-                </button>
-              </div>
-            )}
+              {/* Action Buttons */}
+              {isEditingBookingDetails ? (
+                <div className="flex flex-col sm:flex-row gap-3 mt-6 pt-6 border-t border-gray-200">
+                  <button 
+                    onClick={async () => {
+                      try {
+                        if (!editingBookingForm.service_id || !editingBookingForm.date || !editingBookingForm.time || !editingBookingForm.price) {
+                          setError('Please fill in all required fields');
+                          return;
+                        }
+
+                        // Calculate total price including add-ons with quantities
+                        const basePrice = getNumericPrice(editingBookingForm.price || '0');
+                        const addonsTotal = editingBookingForm.addon_ids.reduce((sum, addonId) => {
+                          const addon = addOns.find(a => a.id === addonId);
+                          if (!addon) return sum;
+                          const isIndividualNail = addon.name?.toLowerCase().includes('individual nail');
+                          const quantity = editingBookingForm.addonQuantities[addonId] || 1;
+                          
+                          if (addon.name?.toLowerCase().includes('custom')) {
+                            return sum + getNumericPrice(editingBookingForm.customAddonPrices[addonId] || '0');
+                          }
+                          if (isIndividualNail) {
+                            return sum + (getNumericPrice(addon.price) * quantity);
+                          }
+                          return sum + getNumericPrice(addon.price);
+                        }, 0);
+                        
+                        // For individual nails, we need to insert the addon multiple times (once per nail)
+                        // So we'll expand the addon_ids array to include duplicates
+                        const expandedAddonIds: string[] = [];
+                        editingBookingForm.addon_ids.forEach(addonId => {
+                          const addon = addOns.find(a => a.id === addonId);
+                          const isIndividualNail = addon?.name?.toLowerCase().includes('individual nail');
+                          const quantity = editingBookingForm.addonQuantities[addonId] || 1;
+                          
+                          if (isIndividualNail && quantity > 1) {
+                            // Insert the addon multiple times (once per nail)
+                            for (let i = 0; i < quantity; i++) {
+                              expandedAddonIds.push(addonId);
+                            }
+                          } else {
+                            expandedAddonIds.push(addonId);
+                          }
+                        });
+                        
+                        // Prepare update data
+                        const updateData: any = {
+                          service_id: editingBookingForm.service_id,
+                          date: editingBookingForm.date,
+                          time: editingBookingForm.time,
+                          price: basePrice + addonsTotal,
+                          addon_ids: expandedAddonIds
+                        };
+
+                        // Update booking
+                        const updatedBooking = await api.put(`/api/bookings/${selectedBooking.id}`, updateData);
+                        
+                        // Update selectedBooking with the response
+                        setSelectedBooking(updatedBooking);
+                        setIsEditingBookingDetails(false);
+                        
+                        // Refresh bookings list
+                        const bookingsData = await api.get('/api/bookings');
+                        setBookings(bookingsData);
+                        
+                        setError('');
+                        setShowSuccess('Booking updated successfully!');
+                        setTimeout(() => setShowSuccess(null), 2000);
+                      } catch (err: any) {
+                        if (import.meta.env.DEV) console.error('Error updating booking:', err);
+                        setError(err.message || 'Failed to update booking');
+                      }
+                    }}
+                    className="flex-1 bg-pink-accent text-white px-6 py-3 rounded-xl font-medium hover:bg-pink-accent/90 active:scale-95 transition-all duration-200 flex items-center justify-center gap-2 touch-manipulation shadow-md"
+                  >
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                    </svg>
+                    Save Changes
+                  </button>
+                  <button 
+                    onClick={() => {
+                      setIsEditingBookingDetails(false);
+                      setEditingBookingForm({
+                        service_id: '',
+                        date: '',
+                        time: '',
+                        price: '',
+                        addon_ids: [],
+                        customAddonPrices: {},
+                        addonQuantities: {}
+                      });
+                    }}
+                    className="flex-1 bg-gray-200 text-gray-800 px-6 py-3 rounded-xl font-medium hover:bg-gray-300 active:scale-95 transition-all duration-200 flex items-center justify-center gap-2 touch-manipulation shadow-md"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              ) : !showPastBookings && (
+                <div className="flex flex-col sm:flex-row gap-3 mt-6 pt-6 border-t border-gray-200">
+                  <button 
+                    onClick={() => {
+                      setShowBookingDetailsModal(false);
+                      openEditBookingModal(selectedBooking);
+                    }}
+                    className="flex-1 bg-baby-blue text-white px-6 py-3 rounded-xl font-medium hover:bg-baby-blue/80 active:scale-95 transition-all duration-200 flex items-center justify-center gap-2 touch-manipulation shadow-md"
+                  >
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                    </svg>
+                    Edit Booking
+                  </button>
+                  <button 
+                    onClick={() => {
+                      setShowBookingDetailsModal(false);
+                      onCancelBooking(selectedBooking.token);
+                    }}
+                    className="flex-1 bg-red-500 text-white px-6 py-3 rounded-xl font-medium hover:bg-red-600 active:scale-95 transition-all duration-200 flex items-center justify-center gap-2 touch-manipulation shadow-md"
+                  >
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                    </svg>
+                    Cancel Booking
+                  </button>
+                </div>
+              )}
           </div>
         </Modal>
       )}

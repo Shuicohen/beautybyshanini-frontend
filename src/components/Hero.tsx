@@ -4,65 +4,46 @@ import { useLanguage } from '../contexts/LanguageContext';
 
 const Hero = () => {
   const { t } = useLanguage();
-
   const shouldReduceMotion = useReducedMotion();
 
   return (
-    <section className="relative h-screen flex items-center justify-center text-center overflow-hidden">
-      <motion.div 
-        className="absolute inset-0 bg-gradient-to-br from-soft-pink to-butter-yellow opacity-80"
-        style={{ willChange: 'transform, opacity' }}
-        initial={shouldReduceMotion ? undefined : { scale: 1.1 }}
-        animate={shouldReduceMotion ? undefined : { scale: 1 }}
-        transition={shouldReduceMotion ? undefined : { duration: 1.5 }}
-      ></motion.div>
-      <div className="relative z-10 max-w-4xl mx-auto px-4">
-        <motion.h1 
-          initial={shouldReduceMotion ? undefined : { opacity: 0, y: 30 }}
-          animate={shouldReduceMotion ? undefined : { opacity: 1, y: 0 }}
-          transition={shouldReduceMotion ? undefined : { duration: 0.6, delay: 0.1 }}
-          className="text-5xl md:text-7xl font-bold text-pink-accent mb-6 leading-tight"
-          style={{ willChange: 'transform, opacity' }}
-        >
-          {t('heroTitle')}
-        </motion.h1>
-        <motion.p 
-          initial={shouldReduceMotion ? undefined : { opacity: 0, y: 30 }}
-          animate={shouldReduceMotion ? undefined : { opacity: 1, y: 0 }}
-          transition={shouldReduceMotion ? undefined : { duration: 0.6, delay: 0.2 }}
-          className="text-xl md:text-2xl mb-8 text-text-dark"
-          style={{ willChange: 'transform, opacity' }}
-        >
-          {t('welcomeMessage')}
-        </motion.p>
-        <motion.div 
-          initial={shouldReduceMotion ? undefined : { opacity: 0, y: 30 }}
-          animate={shouldReduceMotion ? undefined : { opacity: 1, y: 0 }}
-          transition={shouldReduceMotion ? undefined : { duration: 0.6, delay: 0.3 }}
-          style={{ willChange: 'transform, opacity' }}
-        >
-          <Link to="/book" className="bg-pink-accent text-white px-8 py-4 rounded-full shadow-soft hover:shadow-lg transition-all duration-300 text-lg font-semibold">
-            {t('bookNow')}
-          </Link>
-        </motion.div>
+    <section className="relative min-h-screen flex items-center justify-center text-center overflow-hidden px-4 py-12 md:py-0">
+      {/* Background overlay - reduced opacity to show animated background */}
+      <div className="absolute inset-0 bg-gradient-to-br from-soft-pink to-butter-yellow opacity-30"></div>
+      
+      <div className="relative z-10 max-w-4xl mx-auto px-4 w-full">
+        {/* Backdrop blur container for better readability */}
+        <div className="backdrop-blur-md bg-white/40 rounded-2xl p-6 md:p-8 lg:p-10 shadow-lg border border-white/20">
+          <motion.h1 
+            initial={shouldReduceMotion ? false : { opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={shouldReduceMotion ? {} : { duration: 0.5 }}
+            className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-bold text-pink-accent mb-4 md:mb-6 leading-tight drop-shadow-sm"
+          >
+            {t('heroTitle')}
+          </motion.h1>
+          <motion.p 
+            initial={shouldReduceMotion ? false : { opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={shouldReduceMotion ? {} : { duration: 0.5, delay: 0.1 }}
+            className="text-lg sm:text-xl md:text-2xl mb-6 md:mb-8 text-text-dark px-2 font-medium drop-shadow-sm"
+          >
+            {t('welcomeMessage')}
+          </motion.p>
+          <motion.div 
+            initial={shouldReduceMotion ? false : { opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={shouldReduceMotion ? {} : { duration: 0.5, delay: 0.2 }}
+          >
+            <Link 
+              to="/book" 
+              className="inline-block bg-pink-accent text-white px-6 py-3 md:px-8 md:py-4 rounded-full shadow-lg active:shadow-md active:scale-95 transition-all duration-200 text-base md:text-lg font-semibold touch-manipulation hover:bg-pink-accent/90"
+            >
+              {t('bookNow')}
+            </Link>
+          </motion.div>
+        </div>
       </div>
-      {/* Subtle animation elements */}
-      {!shouldReduceMotion && (
-        <>
-          <motion.div 
-            className="absolute bottom-0 left-0 w-64 h-64 bg-baby-blue rounded-full filter blur-3xl opacity-30"
-            animate={{ y: [0, -20, 0] }}
-            transition={{ duration: 5, repeat: Infinity, ease: 'easeInOut' }}
-            style={{ willChange: 'transform' }}
-          ></motion.div>
-          <motion.div 
-            className="absolute top-0 right-0 w-96 h-96 bg-butter-yellow rounded-full filter blur-3xl opacity-30"
-            animate={{ y: [0, 20, 0] }}
-            transition={{ duration: 6, repeat: Infinity, ease: 'easeInOut' }}
-            style={{ willChange: 'transform' }}
-          ></motion.div>
-        </>
-      )}
     </section>
   );
 };

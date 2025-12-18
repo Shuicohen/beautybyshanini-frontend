@@ -6,31 +6,30 @@ const HoursContact = () => {
   const { t } = useLanguage();
 
   return (
-    <section className="py-20 px-4 bg-gradient-to-br from-baby-blue/20 to-soft-pink/20">
-      <h2 className="text-4xl font-bold text-center mb-16 text-pink-accent">{t('hoursContact')}</h2>
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-8 max-w-4xl mx-auto">
-        <motion.div 
-          initial={{ opacity: 0, x: -50 }}
-          whileInView={{ opacity: 1, x: 0 }}
-          viewport={{ once: true }}
-          className="bg-white p-8 rounded-2xl shadow-soft"
-        >
-          <h3 className="font-bold text-2xl mb-6 flex items-center text-text-dark"><FaClock className="mr-3 text-pink-accent text-3xl" /> {t('businessHours')}</h3>
-          <p className="mb-2 text-lg">{t('sundayThursday')}</p>
-          <p className="text-lg">{t('friday')}</p>
-        </motion.div>
-        <motion.div 
-          initial={{ opacity: 0, x: 50 }}
-          whileInView={{ opacity: 1, x: 0 }}
-          viewport={{ once: true }}
-          className="bg-white p-8 rounded-2xl shadow-soft"
-        >
-          <h3 className="font-bold text-2xl mb-6 flex items-center text-text-dark"><FaMapMarkerAlt className="mr-3 text-pink-accent text-3xl" /> {t('location')}</h3>
-          <p className="mb-6 text-lg">{t('address')}</p>
-          <a href="https://wa.me/+972587594973" className="block bg-pink-accent text-white px-6 py-3 rounded-full text-center font-semibold hover:bg-pink-accent/90 transition">
+    <section className="py-12 sm:py-16 md:py-20 px-4 bg-gradient-to-br from-baby-blue/20 to-soft-pink/20">
+      <h2 className="text-3xl sm:text-4xl font-bold text-center mb-8 sm:mb-12 md:mb-16 text-pink-accent px-2">{t('hoursContact')}</h2>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 sm:gap-8 max-w-4xl mx-auto">
+        <div className="bg-white p-6 sm:p-8 rounded-xl sm:rounded-2xl shadow-md">
+          <h3 className="font-bold text-xl sm:text-2xl mb-4 sm:mb-6 flex items-center text-text-dark">
+            <FaClock className="mr-3 text-pink-accent text-2xl sm:text-3xl flex-shrink-0" /> 
+            <span>{t('businessHours')}</span>
+          </h3>
+          <p className="mb-2 text-base sm:text-lg">{t('sundayThursday')}</p>
+          <p className="text-base sm:text-lg">{t('friday')}</p>
+        </div>
+        <div className="bg-white p-6 sm:p-8 rounded-xl sm:rounded-2xl shadow-md">
+          <h3 className="font-bold text-xl sm:text-2xl mb-4 sm:mb-6 flex items-center text-text-dark">
+            <FaMapMarkerAlt className="mr-3 text-pink-accent text-2xl sm:text-3xl flex-shrink-0" /> 
+            <span>{t('location')}</span>
+          </h3>
+          <p className="mb-4 sm:mb-6 text-base sm:text-lg">{t('address')}</p>
+          <a 
+            href="https://wa.me/+972587594973" 
+            className="block bg-pink-accent text-white px-5 sm:px-6 py-2.5 sm:py-3 rounded-full text-center font-semibold active:bg-pink-accent/90 transition-colors duration-200 text-sm sm:text-base touch-manipulation"
+          >
             <FaWhatsapp className="inline mr-2" /> {t('contactWhatsApp')}
           </a>
-        </motion.div>
+        </div>
       </div>
     </section>
   );

@@ -18,7 +18,7 @@ function AppContent() {
     <div dir={isRTL ? 'rtl' : 'ltr'} className={isRTL ? 'font-hebrew' : ''}>
       <Router>
         <StickyHeader isMenuOpen={isMenuOpen} setIsMenuOpen={setIsMenuOpen} />
-        <main className="min-h-screen bg-soft-pink text-text-dark">
+        <main className="min-h-screen text-text-dark">
           <Routes>
             <Route path="/" element={<Home />} />
             <Route path="/book" element={<Booking />} />
@@ -29,7 +29,10 @@ function AppContent() {
           </Routes>
         </main>
         <Footer />
-        <Link to="/book" className={`fixed bottom-4 ${isRTL ? 'left-4' : 'right-4'} bg-pink-accent text-white px-6 py-3 rounded-full shadow-lg md:hidden z-50`}>
+        <Link 
+          to="/book" 
+          className={`fixed bottom-4 ${isRTL ? 'left-4' : 'right-4'} bg-pink-accent text-white px-5 py-3 rounded-full shadow-lg md:hidden z-50 active:scale-95 transition-transform duration-200 touch-manipulation text-sm font-semibold`}
+        >
           {t('bookNow')}
         </Link>
       </Router>

@@ -1,6 +1,7 @@
 import { useCallback } from 'react';
 
-const BASE_URL = import.meta.env.VITE_API_URL;
+// Use environment variable for API URL, fallback to localhost only in development
+const BASE_URL = import.meta.env.VITE_API_URL || (import.meta.env.DEV ? 'http://localhost:3000' : '');
 
 export default function useApi(auth = false) {
   const getHeaders = () => ({
@@ -12,8 +13,10 @@ export default function useApi(auth = false) {
     for (let i = 0; i < retries; i++) {
       try {
         const controller = new AbortController();
-        // Increase timeout to 20 seconds
-        const timeoutId = setTimeout(() => controller.abort(), 20000);
+        // Increase timeout to 60 seconds for sync operations, 20 seconds for others
+        const isSyncOperation = url.includes('/sync');
+        const timeoutDuration = isSyncOperation ? 60000 : 20000;
+        const timeoutId = setTimeout(() => controller.abort(), timeoutDuration);
         const response = await fetch(url, { ...options, signal: controller.signal });
         clearTimeout(timeoutId);
         const text = await response.text();
@@ -23,14 +26,18 @@ export default function useApi(auth = false) {
             const errJson = JSON.parse(text);
             errorMsg = errJson.error || errorMsg;
           } catch {}
-          console.error(`API error for ${url}:`, errorMsg, text);
+          if (import.meta.env.DEV) {
+            console.error(`API error for ${url}:`, errorMsg, text);
+          }
           if (response.status === 401) {
             // Redirect to login if unauthorized
             window.location.href = '/admin/login';
             throw new Error('Unauthorized: Redirecting to login');
           }
           if (response.status === 429) {
-            console.warn(`Rate limit hit for ${url}, delaying retry`);
+            if (import.meta.env.DEV) {
+              console.warn(`Rate limit hit for ${url}, delaying retry`);
+            }
             await new Promise(resolve => setTimeout(resolve, 10000));
           }
           throw new Error(errorMsg);
@@ -45,7 +52,9 @@ export default function useApi(auth = false) {
           (error as { name?: string }).name === 'AbortError' &&
           i < retries - 1
         ) {
-          console.warn(`Timeout reached for ${url}, retrying...`);
+          if (import.meta.env.DEV) {
+            console.warn(`Timeout reached for ${url}, retrying...`);
+          }
         } else if (i === retries - 1) {
           throw error;
         }
