@@ -232,6 +232,13 @@ const AdminDashboard = () => {
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
   const [isLoggedIn, setIsLoggedIn] = useState<boolean>(!!token);
+
+  // Redirect to login if no token
+  useEffect(() => {
+    if (!token) {
+      navigate('/admin/login');
+    }
+  }, [token, navigate]);
   const [editingService, setEditingService] = useState<Service | null>(null);
   const [editingBooking, setEditingBooking] = useState<Booking | null>(null);
   const [searchTerm, setSearchTerm] = useState<string>('');

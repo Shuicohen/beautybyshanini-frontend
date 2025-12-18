@@ -1,7 +1,13 @@
 import { useCallback } from 'react';
 
 // Use environment variable for API URL, fallback to localhost only in development
-const BASE_URL = import.meta.env.VITE_API_URL || (import.meta.env.DEV ? 'http://localhost:3000' : '');
+// In production, VITE_API_URL must be set, otherwise throw an error
+const BASE_URL = import.meta.env.VITE_API_URL || (import.meta.env.DEV ? 'http://localhost:3000' : (() => {
+  if (import.meta.env.PROD) {
+    console.error('VITE_API_URL is not set in production environment');
+  }
+  return '';
+})());
 
 export default function useApi(auth = false) {
   const getHeaders = () => ({
@@ -10,6 +16,13 @@ export default function useApi(auth = false) {
   });
 
   const fetchWithRetry = async (url: string, options: RequestInit, retries = 2, delay = 2000) => {
+    // Check if BASE_URL is empty in production
+    if (!BASE_URL && import.meta.env.PROD) {
+      throw new Error('API URL is not configured. Please contact the administrator.');
+    }
+    
+    const fullUrl = `${BASE_URL}${url}`;
+    
     for (let i = 0; i < retries; i++) {
       try {
         const controller = new AbortController();
@@ -17,7 +30,7 @@ export default function useApi(auth = false) {
         const isSyncOperation = url.includes('/sync');
         const timeoutDuration = isSyncOperation ? 60000 : 20000;
         const timeoutId = setTimeout(() => controller.abort(), timeoutDuration);
-        const response = await fetch(url, { ...options, signal: controller.signal });
+        const response = await fetch(fullUrl, { ...options, signal: controller.signal });
         clearTimeout(timeoutId);
         const text = await response.text();
         if (!response.ok) {
@@ -64,11 +77,11 @@ export default function useApi(auth = false) {
   };
 
   const get = useCallback(async (endpoint: string) => {
-    return fetchWithRetry(`${BASE_URL}${endpoint}`, { headers: getHeaders() });
+    return fetchWithRetry(endpoint, { headers: getHeaders() });
   }, [auth]);
 
   const post = useCallback(async (endpoint: string, body: any) => {
-    return fetchWithRetry(`${BASE_URL}${endpoint}`, {
+    return fetchWithRetry(endpoint, {
       method: 'POST',
       headers: getHeaders(),
       body: JSON.stringify(body),
@@ -76,7 +89,7 @@ export default function useApi(auth = false) {
   }, [auth]);
 
   const put = useCallback(async (endpoint: string, body: any) => {
-    return fetchWithRetry(`${BASE_URL}${endpoint}`, {
+    return fetchWithRetry(endpoint, {
       method: 'PUT',
       headers: getHeaders(),
       body: JSON.stringify(body),
@@ -84,7 +97,7 @@ export default function useApi(auth = false) {
   }, [auth]);
 
   const del = useCallback(async (endpoint: string) => {
-    return fetchWithRetry(`${BASE_URL}${endpoint}`, {
+    return fetchWithRetry(endpoint, {
       method: 'DELETE',
       headers: getHeaders(),
     });
