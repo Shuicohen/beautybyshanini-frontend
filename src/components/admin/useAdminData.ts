@@ -91,7 +91,8 @@ export const useAdminData = ({ isLoggedIn, token, activeTab, analyticsTimeRange 
           
           const totalRevenue = (bookingsData || []).reduce((sum: number, b: any) => sum + (Number(b.price) || 0), 0);
 
-          const mergedAnalytics = {
+          setAnalytics((prevAnalytics) => ({
+            ...prevAnalytics,
             mostBooked: analyticsData?.mostBooked || '',
             vipClients: Array.isArray(analyticsData?.vipClients) ? analyticsData.vipClients : [],
             revenueGrowth: toNum(analyticsData?.revenueGrowth),
@@ -127,9 +128,8 @@ export const useAdminData = ({ isLoggedIn, token, activeTab, analyticsTimeRange 
             totalReviews: toNum(analyticsData?.totalReviews),
             revenueEstimate: toNum(analyticsData?.revenueEstimate, totalRevenue),
             totalRevenue: toNum(analyticsData?.totalRevenue, totalRevenue)
-          };
-
-          setAnalytics(mergedAnalytics);
+          }));
+          
           const today = new Date();
           today.setHours(0,0,0,0);
           const available = (availabilityData?.availableDates || []).filter((dateStr: string) => {
@@ -147,8 +147,7 @@ export const useAdminData = ({ isLoggedIn, token, activeTab, analyticsTimeRange 
           setLoading(false);
         });
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isLoggedIn, token]);
+  }, [isLoggedIn, token, analyticsTimeRange, api]);
 
   // Fetch clients when Clients tab is active
   useEffect(() => {
