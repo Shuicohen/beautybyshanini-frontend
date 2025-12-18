@@ -1003,7 +1003,7 @@ const AdminDashboard = () => {
   if (error) return <div className="flex justify-center items-center h-screen text-red-500">Error: {error}. <button onClick={() => window.location.reload()} className="ml-2 text-pink-accent underline">Retry</button></div>;
 
   return (
-    <div className="relative min-h-screen h-screen flex flex-col md:flex-row overflow-hidden">
+    <div className="relative min-h-screen flex flex-col md:flex-row">
       <AnimatedBackground />
       {/* Mobile menu button */}
       <button 
@@ -1024,8 +1024,8 @@ const AdminDashboard = () => {
       <nav
         className={`
           relative z-40 bg-white/95 backdrop-blur-md p-3 sm:p-4 md:p-6 shadow-soft flex flex-col
-          w-72 max-w-[80vw] h-full fixed top-0 left-0 transition-transform duration-300 ease-in-out
-          md:static md:w-1/5 md:h-auto md:block md:translate-x-0
+          w-72 max-w-[80vw] h-screen fixed top-0 left-0 transition-transform duration-300 ease-in-out
+          md:static md:w-1/5 md:h-screen md:block md:translate-x-0
           ${isMenuOpen ? 'translate-x-0' : '-translate-x-full'}
           md:translate-x-0 border-r border-white/20 overflow-y-auto
         `}
@@ -1057,7 +1057,7 @@ const AdminDashboard = () => {
         </button>
       </nav>
       {/* Main content area */}
-      <main className="relative z-10 flex-1 p-2 sm:p-3 md:p-4 lg:p-6 xl:p-8 overflow-x-hidden overflow-y-auto w-full h-full">
+      <main className="relative z-10 flex-1 p-2 sm:p-3 md:p-4 lg:p-6 xl:p-8 overflow-x-hidden overflow-y-auto w-full min-h-screen md:min-h-screen pt-12 md:pt-0">
         <motion.div 
           key={activeTab}
           initial={{ opacity: 0, y: 20 }}
