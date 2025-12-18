@@ -745,10 +745,91 @@ const AdminDashboard = () => {
             />
           )}
           {activeTab === 'Manage Services' && (
-            <ManageServicesTab />
+            <ManageServicesTab
+              mainServices={mainServices}
+              addOns={addOns}
+              onEditService={openEditModal}
+              onDeleteService={onDeleteService}
+              onAddMainService={() => {
+                setEditingService(null);
+                setIsAddingAddon(false);
+                reset({ is_addon: false });
+                setModalType('serviceForm');
+                setShowModal(true);
+              }}
+              onAddAddonService={() => {
+                setEditingService(null);
+                setIsAddingAddon(true);
+                reset({ is_addon: true });
+                setModalType('serviceForm');
+                setShowModal(true);
+              }}
+            />
           )}
           {activeTab === 'Availability' && (
-            <AvailabilityTab />
+            <AvailabilityTab
+              availableDays={availableDays}
+              selectedDays={selectedDays}
+              calendarDate={calendarDate}
+              showSuccess={showSuccess}
+              onCalendarDateChange={setCalendarDate}
+              onDayClick={(value) => {
+                const dateStr = format(value, 'yyyy-MM-dd');
+                const isAvailable = availableDays.includes(dateStr);
+                if (isAvailable) {
+                  setEditDate(value);
+                  setEditTimes(null);
+                  setSingleDayAction('editHours');
+                  setModalType('editSingleDay');
+                  setShowModal(true);
+                  fetchDateDetailsForDate(value);
+                } else {
+                  setSelectedDays((prev) => {
+                    const exists = prev.some(d => d.toDateString() === value.toDateString());
+                    return exists ? prev.filter(d => d.toDateString() !== value.toDateString()) : [...prev, value];
+                  });
+                }
+              }}
+              onBlockTime={() => { setModalType('blockTime'); setShowModal(true); }}
+              onSetOpenHours={() => { setModalType('openHours'); setShowModal(true); }}
+              onSyncGoogleCalendar={async () => {
+                try {
+                  setShowSuccess('🔄 Syncing Google Calendar (this may take up to 60 seconds)...');
+                  const today = new Date();
+                  const twoMonthsFromNow = addMonths(today, 2);
+                  const startDate = format(today, 'yyyy-MM-dd');
+                  const endDate = format(twoMonthsFromNow, 'yyyy-MM-dd');
+                  
+                  const result = await api.post('/api/availability/sync', { 
+                    startDate,
+                    endDate
+                  });
+                  
+                  setShowSuccess(`✅ Synced ${result.synced || 0} time slots from Google Calendar`);
+                  setTimeout(() => setShowSuccess(null), 8000);
+                  
+                  // Refresh available dates after sync
+                  api.get('/api/availability/dates').then((data: { availableDates: string[] }) => {
+                    if (data && Array.isArray(data.availableDates)) {
+                      const today = new Date();
+                      today.setHours(0,0,0,0);
+                      const available = data.availableDates.filter((dateStr: string) => {
+                        const dateObj = new Date(dateStr);
+                        dateObj.setHours(0,0,0,0);
+                        return dateObj >= today;
+                      });
+                      setAvailableDays(available);
+                    }
+                  });
+                } catch (error: any) {
+                  const errorMsg = error.message || 'Unknown error';
+                  setShowSuccess(`❌ Sync failed: ${errorMsg}. Please try again.`);
+                  setTimeout(() => setShowSuccess(null), 8000);
+                }
+              }}
+              api={api}
+              setAvailableDays={setAvailableDays}
+            />
           )}
           {activeTab === 'Bookings' && (
             <BookingsTab />
