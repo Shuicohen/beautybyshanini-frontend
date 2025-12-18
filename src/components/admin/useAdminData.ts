@@ -172,45 +172,47 @@ export const useAdminData = ({ isLoggedIn, token, activeTab, analyticsTimeRange 
     if (isLoggedIn && token && activeTab === 'Analytics') {
       api.get(`/api/analytics?range=${analyticsTimeRange}`)
         .then((analyticsData: any) => {
-          const mergedAnalytics = {
-            ...analytics,
-            mostBooked: analyticsData?.mostBooked || '',
-            vipClients: Array.isArray(analyticsData?.vipClients) ? analyticsData.vipClients : [],
-            revenueGrowth: toNum(analyticsData?.revenueGrowth),
-            totalBookings: toNum(analyticsData?.totalBookings),
-            bookingGrowth: toNum(analyticsData?.bookingGrowth),
-            totalClients: toNum(analyticsData?.totalClients),
-            newClientsGrowth: toNum(analyticsData?.newClientsGrowth),
-            avgBookingValue: toNum(analyticsData?.avgBookingValue),
-            revenueChart: Array.isArray(analyticsData?.revenueChart)
-              ? analyticsData.revenueChart.map((item: any) => ({
-                  label: item.label,
-                  value: toNum(item.value)
-                }))
-              : [],
-            serviceStats: sanitizeStats(analyticsData?.serviceStats, ['bookings', 'revenue', 'percentage']),
-            peakHours: sanitizeStats(analyticsData?.peakHours, ['bookings', 'percentage']),
-            repeatCustomerRate: toNum(analyticsData?.repeatCustomerRate),
-            newClientsThisPeriod: toNum(analyticsData?.newClientsThisPeriod),
-            avgVisitsPerClient: toNum(analyticsData?.avgVisitsPerClient),
-            clientRetentionRate: toNum(analyticsData?.clientRetentionRate),
-            avgBookingsPerDay: toNum(analyticsData?.avgBookingsPerDay),
-            busiestDay: analyticsData?.busiestDay || '',
-            cancellationRate: toNum(analyticsData?.cancellationRate),
-            noShowRate: toNum(analyticsData?.noShowRate),
-            addonStats: sanitizeStats(analyticsData?.addonStats, ['bookings', 'revenue', 'popularityRate', 'avgPerBooking']),
-            monthlyGoalProgress: toNum(analyticsData?.monthlyGoalProgress),
-            currentMonthRevenue: toNum(analyticsData?.currentMonthRevenue),
-            monthlyGoal: toNum(analyticsData?.monthlyGoal),
-            bookingGoalProgress: toNum(analyticsData?.bookingGoalProgress),
-            currentMonthBookings: toNum(analyticsData?.currentMonthBookings),
-            monthlyBookingGoal: toNum(analyticsData?.monthlyBookingGoal),
-            satisfactionScore: toNum(analyticsData?.satisfactionScore),
-            totalReviews: toNum(analyticsData?.totalReviews),
-            revenueEstimate: toNum(analyticsData?.revenueEstimate),
-            totalRevenue: toNum(analyticsData?.totalRevenue)
-          };
-          setAnalytics(mergedAnalytics);
+          setAnalytics((prevAnalytics) => {
+            const mergedAnalytics = {
+              ...prevAnalytics,
+              mostBooked: analyticsData?.mostBooked || '',
+              vipClients: Array.isArray(analyticsData?.vipClients) ? analyticsData.vipClients : [],
+              revenueGrowth: toNum(analyticsData?.revenueGrowth),
+              totalBookings: toNum(analyticsData?.totalBookings),
+              bookingGrowth: toNum(analyticsData?.bookingGrowth),
+              totalClients: toNum(analyticsData?.totalClients),
+              newClientsGrowth: toNum(analyticsData?.newClientsGrowth),
+              avgBookingValue: toNum(analyticsData?.avgBookingValue),
+              revenueChart: Array.isArray(analyticsData?.revenueChart)
+                ? analyticsData.revenueChart.map((item: any) => ({
+                    label: item.label,
+                    value: toNum(item.value)
+                  }))
+                : [],
+              serviceStats: sanitizeStats(analyticsData?.serviceStats, ['bookings', 'revenue', 'percentage']),
+              peakHours: sanitizeStats(analyticsData?.peakHours, ['bookings', 'percentage']),
+              repeatCustomerRate: toNum(analyticsData?.repeatCustomerRate),
+              newClientsThisPeriod: toNum(analyticsData?.newClientsThisPeriod),
+              avgVisitsPerClient: toNum(analyticsData?.avgVisitsPerClient),
+              clientRetentionRate: toNum(analyticsData?.clientRetentionRate),
+              avgBookingsPerDay: toNum(analyticsData?.avgBookingsPerDay),
+              busiestDay: analyticsData?.busiestDay || '',
+              cancellationRate: toNum(analyticsData?.cancellationRate),
+              noShowRate: toNum(analyticsData?.noShowRate),
+              addonStats: sanitizeStats(analyticsData?.addonStats, ['bookings', 'revenue', 'popularityRate', 'avgPerBooking']),
+              monthlyGoalProgress: toNum(analyticsData?.monthlyGoalProgress),
+              currentMonthRevenue: toNum(analyticsData?.currentMonthRevenue),
+              monthlyGoal: toNum(analyticsData?.monthlyGoal),
+              bookingGoalProgress: toNum(analyticsData?.bookingGoalProgress),
+              currentMonthBookings: toNum(analyticsData?.currentMonthBookings),
+              monthlyBookingGoal: toNum(analyticsData?.monthlyBookingGoal),
+              satisfactionScore: toNum(analyticsData?.satisfactionScore),
+              totalReviews: toNum(analyticsData?.totalReviews),
+              revenueEstimate: toNum(analyticsData?.revenueEstimate),
+              totalRevenue: toNum(analyticsData?.totalRevenue)
+            };
+            return mergedAnalytics;
+          });
         })
         .catch((err: any) => {
           if (import.meta.env.DEV) console.error('Analytics fetch failed:', err);

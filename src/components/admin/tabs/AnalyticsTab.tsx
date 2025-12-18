@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import type { Analytics, Booking } from '../types';
 import { formatCurrency } from '../utils';
@@ -23,9 +23,19 @@ export const AnalyticsTab = ({
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
   const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth());
   const [goalInputs, setGoalInputs] = useState({
-    monthlyGoal: analytics.monthlyGoal || 0,
-    monthlyBookingGoal: analytics.monthlyBookingGoal || 0
+    monthlyGoal: 0,
+    monthlyBookingGoal: 0
   });
+
+  // Sync goalInputs with analytics when analytics changes
+  useEffect(() => {
+    if (analytics.monthlyGoal !== undefined && analytics.monthlyBookingGoal !== undefined) {
+      setGoalInputs({
+        monthlyGoal: analytics.monthlyGoal || 0,
+        monthlyBookingGoal: analytics.monthlyBookingGoal || 0
+      });
+    }
+  }, [analytics.monthlyGoal, analytics.monthlyBookingGoal]);
 
   const handleSaveGoals = () => {
     onSaveGoals(goalInputs);
