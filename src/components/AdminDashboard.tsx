@@ -102,13 +102,13 @@ const AdminDashboard = () => {
     api
   } = useAdminData({ isLoggedIn, token, activeTab, analyticsTimeRange });
 
-  const [goalInputs, setGoalInputs] = useState({
-    monthlyGoal: analytics.monthlyGoal,
-    monthlyBookingGoal: analytics.monthlyBookingGoal
-  });
   // State for selected month and year for goals
   const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth());
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
+  const [goalInputs, setGoalInputs] = useState({
+    monthlyGoal: 0,
+    monthlyBookingGoal: 0
+  });
 
   // Redirect to login if no token
   useEffect(() => {
@@ -117,11 +117,14 @@ const AdminDashboard = () => {
     }
   }, [token, navigate]);
 
+  // Sync goalInputs with analytics when analytics changes
   useEffect(() => {
-    setGoalInputs({
-      monthlyGoal: analytics.monthlyGoal,
-      monthlyBookingGoal: analytics.monthlyBookingGoal
-    });
+    if (analytics.monthlyGoal !== undefined && analytics.monthlyBookingGoal !== undefined) {
+      setGoalInputs({
+        monthlyGoal: analytics.monthlyGoal || 0,
+        monthlyBookingGoal: analytics.monthlyBookingGoal || 0
+      });
+    }
   }, [analytics.monthlyGoal, analytics.monthlyBookingGoal]);
 
   // Save updated goals to backend
