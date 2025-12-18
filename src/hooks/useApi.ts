@@ -31,9 +31,10 @@ export default function useApi(auth = false) {
     for (let i = 0; i < retries; i++) {
       try {
         const controller = new AbortController();
-        // Increase timeout to 60 seconds for sync operations, 20 seconds for others
+        // Increase timeout to 60 seconds for sync operations, 30 seconds for analytics, 20 seconds for others
         const isSyncOperation = url.includes('/sync');
-        const timeoutDuration = isSyncOperation ? 60000 : 20000;
+        const isAnalyticsOperation = url.includes('/analytics');
+        const timeoutDuration = isSyncOperation ? 60000 : (isAnalyticsOperation ? 30000 : 20000);
         const timeoutId = setTimeout(() => controller.abort(), timeoutDuration);
         const response = await fetch(fullUrl, { ...options, signal: controller.signal });
         clearTimeout(timeoutId);

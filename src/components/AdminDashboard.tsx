@@ -416,16 +416,25 @@ const AdminDashboard = () => {
     if (isLoggedIn && token) {
       setLoading(true);
       setError(null);
-      Promise.all([
-        api.get('/api/bookings').then(data => data).catch(err => { if (import.meta.env.DEV) console.error('Bookings error:', err); return []; }),
-        api.get('/api/services').then(data => data).catch(err => { if (import.meta.env.DEV) console.error('Services error:', err); return []; }),
-        api.get(`/api/analytics?range=${analyticsTimeRange}`).then(data => data).catch(err => {
+      
+      // Use Promise.allSettled instead of Promise.all to handle individual failures gracefully
+      Promise.allSettled([
+        api.get('/api/bookings').catch(err => { if (import.meta.env.DEV) console.error('Bookings error:', err); throw err; }),
+        api.get('/api/services').catch(err => { if (import.meta.env.DEV) console.error('Services error:', err); throw err; }),
+        api.get(`/api/analytics?range=${analyticsTimeRange}`).catch(err => {
           if (import.meta.env.DEV) console.error('Analytics fetch failed:', err);
-          return { mostBooked: '', revenueEstimate: 0, vipClients: [] }; // Default fallback
+          throw err;
         }),
-        api.get('/api/availability/dates').then(data => data).catch(err => { if (import.meta.env.DEV) console.error('Availability error:', err); return { availableDates: [] }; }),
+        api.get('/api/availability/dates').catch(err => { if (import.meta.env.DEV) console.error('Availability error:', err); throw err; }),
       ])
-        .then(([bookingsData, servicesData, analyticsData, availabilityData]) => {
+        .then((results) => {
+          // Extract data from each result, using fallbacks if failed
+          const bookingsData = results[0].status === 'fulfilled' ? results[0].value : [];
+          const servicesData = results[1].status === 'fulfilled' ? results[1].value : [];
+          const analyticsData = results[2].status === 'fulfilled' ? results[2].value : { mostBooked: '', revenueEstimate: 0, vipClients: [] };
+          const availabilityData = results[3].status === 'fulfilled' ? results[3].value : { availableDates: [] };
+          
+          // Process the data
           setBookings(bookingsData || []);
           setServices(servicesData || []);
           
@@ -504,8 +513,11 @@ const AdminDashboard = () => {
           setAvailableDays(available);
         })
         .catch(err => {
-          if (import.meta.env.DEV) console.error('AdminDashboard: Promise.all error', err);
-          setError(err.message);
+          if (import.meta.env.DEV) console.error('AdminDashboard: Error processing data', err);
+          // Only show error if critical data failed (bookings or services)
+          // Analytics and availability failures are non-critical
+          const errorMessage = err?.message || 'Failed to load some data. Please refresh the page.';
+          setError(errorMessage);
         })
         .finally(() => {
           setLoading(false);
