@@ -18,38 +18,17 @@ export const AnalyticsTab = ({
   onTimeRangeChange,
   onSaveGoals
 }: AnalyticsTabProps) => {
-  // #region agent log
-  fetch('http://127.0.0.1:7242/ingest/e7494785-1fe6-47f3-8df4-c77793040f40',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'AnalyticsTab.tsx:20',message:'AnalyticsTab render start',data:{hasAnalytics:!!analytics},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B,E'})}).catch(()=>{});
-  // #endregion
   const [revenueChartType, setRevenueChartType] = useState<'daily' | 'weekly'>('weekly');
-  // #region agent log
-  fetch('http://127.0.0.1:7242/ingest/e7494785-1fe6-47f3-8df4-c77793040f40',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'AnalyticsTab.tsx:21',message:'useState hook 1',data:{hook:'revenueChartType'},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
-  // #endregion
   const [editingGoals, setEditingGoals] = useState(false);
-  // #region agent log
-  fetch('http://127.0.0.1:7242/ingest/e7494785-1fe6-47f3-8df4-c77793040f40',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'AnalyticsTab.tsx:22',message:'useState hook 2',data:{hook:'editingGoals'},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
-  // #endregion
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
-  // #region agent log
-  fetch('http://127.0.0.1:7242/ingest/e7494785-1fe6-47f3-8df4-c77793040f40',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'AnalyticsTab.tsx:23',message:'useState hook 3',data:{hook:'selectedYear'},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
-  // #endregion
   const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth());
-  // #region agent log
-  fetch('http://127.0.0.1:7242/ingest/e7494785-1fe6-47f3-8df4-c77793040f40',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'AnalyticsTab.tsx:24',message:'useState hook 4',data:{hook:'selectedMonth'},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
-  // #endregion
   const [goalInputs, setGoalInputs] = useState({
     monthlyGoal: 0,
     monthlyBookingGoal: 0
   });
-  // #region agent log
-  fetch('http://127.0.0.1:7242/ingest/e7494785-1fe6-47f3-8df4-c77793040f40',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'AnalyticsTab.tsx:25',message:'useState hook 5',data:{hook:'goalInputs'},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
-  // #endregion
 
   // Sync goalInputs with analytics when analytics changes
   useEffect(() => {
-    // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/e7494785-1fe6-47f3-8df4-c77793040f40',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'AnalyticsTab.tsx:31',message:'useEffect hook sync goalInputs',data:{monthlyGoal:analytics.monthlyGoal,monthlyBookingGoal:analytics.monthlyBookingGoal},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A,D'})}).catch(()=>{});
-    // #endregion
     if (analytics.monthlyGoal !== undefined && analytics.monthlyBookingGoal !== undefined) {
       setGoalInputs({
         monthlyGoal: analytics.monthlyGoal || 0,
@@ -70,11 +49,11 @@ export const AnalyticsTab = ({
           <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-pink-accent">Analytics Dashboard</h1>
           <p className="text-sm sm:text-base text-gray-600 mt-1">Business insights and performance metrics</p>
         </div>
-        
+
         {/* Time Range Filter */}
         <div className="bg-white rounded-xl p-2 shadow-soft">
-          <select 
-            value={analyticsTimeRange} 
+          <select
+            value={analyticsTimeRange}
             onChange={(e) => onTimeRangeChange(e.target.value as 'week' | 'month' | 'quarter' | 'year')}
             className="bg-transparent border-none focus:outline-none text-gray-700 font-medium"
           >
@@ -88,8 +67,8 @@ export const AnalyticsTab = ({
 
       {/* Key Metrics Grid */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-6">
-        <motion.div 
-          initial={{ opacity: 0, y: 20 }}
+        <motion.div
+          initial={{ opacity: 0, y: 0 }}
           animate={{ opacity: 1, y: 0 }}
           className="bg-gradient-to-br from-pink-50 to-pink-100 p-6 rounded-2xl shadow-soft border border-pink-200"
         >
@@ -112,8 +91,8 @@ export const AnalyticsTab = ({
           <p className="text-sm text-gray-600 mt-1">vs. previous period</p>
         </motion.div>
 
-        <motion.div 
-          initial={{ opacity: 0, y: 20 }}
+        <motion.div
+          initial={{ opacity: 0, y: 0 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.1 }}
           className="bg-gradient-to-br from-blue-50 to-blue-100 p-6 rounded-2xl shadow-soft border border-blue-200"
@@ -135,8 +114,8 @@ export const AnalyticsTab = ({
           <p className="text-sm text-gray-600 mt-1">appointments completed</p>
         </motion.div>
 
-        <motion.div 
-          initial={{ opacity: 0, y: 20 }}
+        <motion.div
+          initial={{ opacity: 0, y: 0 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.2 }}
           className="bg-gradient-to-br from-purple-50 to-purple-100 p-6 rounded-2xl shadow-soft border border-purple-200"
@@ -158,8 +137,8 @@ export const AnalyticsTab = ({
           <p className="text-sm text-gray-600 mt-1">unique customers</p>
         </motion.div>
 
-        <motion.div 
-          initial={{ opacity: 0, y: 20 }}
+        <motion.div
+          initial={{ opacity: 0, y: 0 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.3 }}
           className="bg-gradient-to-br from-green-50 to-green-100 p-6 rounded-2xl shadow-soft border border-green-200"
@@ -188,19 +167,17 @@ export const AnalyticsTab = ({
           <div className="flex items-center justify-between mb-6">
             <h3 className="text-xl font-bold text-gray-800">Revenue Trend</h3>
             <div className="flex gap-2">
-              <button 
+              <button
                 onClick={() => setRevenueChartType('daily')}
-                className={`px-3 py-1 rounded-lg text-sm font-medium transition ${
-                  revenueChartType === 'daily' ? 'bg-pink-accent text-white' : 'bg-gray-100 text-gray-600'
-                }`}
+                className={`px-3 py-1 rounded-lg text-sm font-medium transition ${revenueChartType === 'daily' ? 'bg-pink-accent text-white' : 'bg-gray-100 text-gray-600'
+                  }`}
               >
                 Daily
               </button>
-              <button 
+              <button
                 onClick={() => setRevenueChartType('weekly')}
-                className={`px-3 py-1 rounded-lg text-sm font-medium transition ${
-                  revenueChartType === 'weekly' ? 'bg-pink-accent text-white' : 'bg-gray-100 text-gray-600'
-                }`}
+                className={`px-3 py-1 rounded-lg text-sm font-medium transition ${revenueChartType === 'weekly' ? 'bg-pink-accent text-white' : 'bg-gray-100 text-gray-600'
+                  }`}
               >
                 Weekly
               </button>
@@ -213,7 +190,7 @@ export const AnalyticsTab = ({
                 <div key={index} className="flex items-center gap-3">
                   <div className="w-16 text-sm text-gray-600 font-medium">{item.label}</div>
                   <div className="flex-1 bg-gray-100 rounded-full h-3 relative overflow-hidden">
-                    <div 
+                    <div
                       className="h-full bg-gradient-to-r from-pink-accent to-pink-accent/80 rounded-full transition-all duration-500"
                       style={{ width: `${(item.value / Math.max(...analytics.revenueChart.map((i: any) => i.value))) * 100}%` }}
                     ></div>
@@ -285,7 +262,7 @@ export const AnalyticsTab = ({
                   <span className="text-gray-700 font-medium">{hour.time}</span>
                   <div className="flex items-center gap-2">
                     <div className="w-20 bg-gray-100 rounded-full h-2 overflow-hidden">
-                      <div 
+                      <div
                         className="h-full bg-orange-500 rounded-full transition-all duration-500"
                         style={{ width: `${hour.percentage}%` }}
                       ></div>
@@ -321,13 +298,13 @@ export const AnalyticsTab = ({
                 <span className="text-lg font-bold text-purple-600">{analytics.repeatCustomerRate || 0}%</span>
               </div>
               <div className="w-full bg-purple-100 rounded-full h-2 overflow-hidden">
-                <div 
+                <div
                   className="h-full bg-purple-500 rounded-full transition-all duration-500"
                   style={{ width: `${analytics.repeatCustomerRate || 0}%` }}
                 ></div>
               </div>
             </div>
-            
+
             <div className="space-y-3">
               <div className="flex justify-between items-center">
                 <span className="text-gray-600">New Clients This Period</span>
@@ -360,7 +337,7 @@ export const AnalyticsTab = ({
                 <div className="text-sm text-blue-700">Avg. bookings/day</div>
               </div>
             </div>
-            
+
             <div className="space-y-3">
               <div className="flex justify-between items-center">
                 <span className="text-gray-600">Busiest Day</span>
@@ -412,7 +389,7 @@ export const AnalyticsTab = ({
                 }
               }
               if (isNaN(totalSpent)) totalSpent = 0;
-              
+
               return (
                 <div key={index} className="flex items-center justify-between p-3 bg-yellow-50 rounded-xl border border-yellow-200">
                   <div>
@@ -548,13 +525,13 @@ export const AnalyticsTab = ({
                   return bookingDate >= monthStart && bookingDate <= monthEnd;
                 })
                 .reduce((sum, b) => sum + (Number(b.price) || 0), 0);
-              const monthProgress = analytics.monthlyGoal > 0 
-                ? Math.min((monthRevenue / analytics.monthlyGoal) * 100, 100) 
+              const monthProgress = analytics.monthlyGoal > 0
+                ? Math.min((monthRevenue / analytics.monthlyGoal) * 100, 100)
                 : 0;
               return (
                 <>
                   <div className="w-full bg-gray-200 rounded-full h-3 mb-2 overflow-hidden">
-                    <div 
+                    <div
                       className="h-full bg-gradient-to-r from-indigo-500 to-purple-500 rounded-full transition-all duration-700"
                       style={{ width: `${monthProgress}%` }}
                     ></div>
@@ -613,13 +590,13 @@ export const AnalyticsTab = ({
                 const bookingDate = new Date(b.date);
                 return bookingDate >= monthStart && bookingDate <= monthEnd;
               }).length;
-              const bookingProgress = analytics.monthlyBookingGoal > 0 
-                ? Math.min((monthBookings / analytics.monthlyBookingGoal) * 100, 100) 
+              const bookingProgress = analytics.monthlyBookingGoal > 0
+                ? Math.min((monthBookings / analytics.monthlyBookingGoal) * 100, 100)
                 : 0;
               return (
                 <>
                   <div className="w-full bg-gray-200 rounded-full h-3 mb-2 overflow-hidden">
-                    <div 
+                    <div
                       className="h-full bg-gradient-to-r from-blue-500 to-indigo-500 rounded-full transition-all duration-700"
                       style={{ width: `${bookingProgress}%` }}
                     ></div>

@@ -17,9 +17,6 @@ import { OverviewTab, ManageServicesTab, AvailabilityTab, BookingsTab, ClientsTa
 import { groupBookingsByDate, groupBookingsByWeek, groupBookingsByMonth, getDateRangeForFilter } from './admin/tabs/bookingHelpers';
 
 const AdminDashboard = () => {
-  // #region agent log
-  fetch('http://127.0.0.1:7242/ingest/e7494785-1fe6-47f3-8df4-c77793040f40',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'AdminDashboard.tsx:19',message:'AdminDashboard render start',data:{timestamp:Date.now()},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A,B,C'})}).catch(()=>{});
-  // #endregion
   const navigate = useNavigate();
   const { register, handleSubmit, reset } = useForm<ServiceFormData & BlockTimeFormData & OpenHoursFormData & BookingFormData>();
   const [token, setToken] = useState<string | null>(localStorage.getItem('token'));
@@ -81,11 +78,8 @@ const AdminDashboard = () => {
 
   // State for editing performance goals
   const [editingGoals, setEditingGoals] = useState(false);
-  
+
   // Use the extracted hook for data management
-  // #region agent log
-  fetch('http://127.0.0.1:7242/ingest/e7494785-1fe6-47f3-8df4-c77793040f40',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'AdminDashboard.tsx:83',message:'Before useAdminData hook call',data:{activeTab,analyticsTimeRange,isLoggedIn,hasToken:!!token},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'})}).catch(()=>{});
-  // #endregion
   const {
     bookings,
     setBookings,
@@ -107,9 +101,6 @@ const AdminDashboard = () => {
     loadingClients,
     api
   } = useAdminData({ isLoggedIn, token, activeTab, analyticsTimeRange });
-  // #region agent log
-  fetch('http://127.0.0.1:7242/ingest/e7494785-1fe6-47f3-8df4-c77793040f40',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'AdminDashboard.tsx:103',message:'After useAdminData hook call',data:{hasAnalytics:!!analytics,hasBookings:!!bookings},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'})}).catch(()=>{});
-  // #endregion
 
   // State for selected month and year for goals
   const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth());
@@ -121,9 +112,6 @@ const AdminDashboard = () => {
 
   // Redirect to login if no token
   useEffect(() => {
-    // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/e7494785-1fe6-47f3-8df4-c77793040f40',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'AdminDashboard.tsx:114',message:'useEffect token check',data:{hasToken:!!token},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
-    // #endregion
     if (!token) {
       navigate('/admin/login');
     }
@@ -131,9 +119,6 @@ const AdminDashboard = () => {
 
   // Sync goalInputs with analytics when analytics changes
   useEffect(() => {
-    // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/e7494785-1fe6-47f3-8df4-c77793040f40',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'AdminDashboard.tsx:121',message:'useEffect sync goalInputs',data:{monthlyGoal:analytics.monthlyGoal,monthlyBookingGoal:analytics.monthlyBookingGoal},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A,D'})}).catch(()=>{});
-    // #endregion
     if (analytics.monthlyGoal !== undefined && analytics.monthlyBookingGoal !== undefined) {
       setGoalInputs({
         monthlyGoal: analytics.monthlyGoal || 0,
@@ -181,12 +166,12 @@ const AdminDashboard = () => {
   const onSetOpenHours = (data: OpenHoursFormData) => {
     setError(null);
     const days = selectedDays.length > 0 ? selectedDays : [new Date()];
-    
+
     if (!data.start_time || !data.end_time) {
       setError('Please provide both start time and end time');
       return;
     }
-    
+
     Promise.all(
       days.map(day =>
         api.post('/api/availability', {
@@ -247,13 +232,13 @@ const AdminDashboard = () => {
 
   const onEditBooking = (data: BookingFormData) => {
     if (!editingBooking) return;
-    
+
     // Add selected add-on IDs to the booking data
     const bookingData = {
       ...data,
       addon_ids: selectedBookingAddOns.map(addon => addon.id)
     };
-    
+
     api.put(`/api/bookings/${editingBooking.id}`, bookingData)
       .then((updatedBooking) => {
         setBookings(bookings.map(b => b.id === editingBooking.id ? updatedBooking : b));
@@ -343,7 +328,7 @@ const AdminDashboard = () => {
     setEditingBooking(booking);
     // Format date for HTML date input (YYYY-MM-DD)
     const formattedDate = booking.date ? new Date(booking.date).toISOString().split('T')[0] : '';
-    
+
     // Initialize selected add-ons from booking
     const bookingAddOns: Service[] = [];
     if (booking.addons) {
@@ -355,7 +340,7 @@ const AdminDashboard = () => {
       });
     }
     setSelectedBookingAddOns(bookingAddOns);
-    
+
     reset({
       service_id: booking.service_id,
       date: formattedDate,
@@ -386,7 +371,7 @@ const AdminDashboard = () => {
 
   const calculateTotalPrice = () => {
     let total = 0;
-    
+
     // Get base service price
     if (editingBooking) {
       const baseService = services.find(s => s.id === editingBooking.service_id);
@@ -394,18 +379,18 @@ const AdminDashboard = () => {
         total += Number(baseService.price || 0);
       }
     }
-    
+
     // Add add-on prices
     selectedBookingAddOns.forEach(addon => {
       total += Number(addon.price || 0);
     });
-    
+
     return total;
   };
 
   const calculateTotalDuration = () => {
     let total = 0;
-    
+
     // Get base service duration
     if (editingBooking) {
       const baseService = services.find(s => s.id === editingBooking.service_id);
@@ -413,12 +398,12 @@ const AdminDashboard = () => {
         total += Number(baseService.duration || 0);
       }
     }
-    
+
     // Add add-on durations
     selectedBookingAddOns.forEach(addon => {
       total += Number(addon.duration || 0);
     });
-    
+
     return total;
   };
 
@@ -426,12 +411,12 @@ const AdminDashboard = () => {
   const onEditOpenHours = (data: OpenHoursFormData) => {
     if (!editDate) return;
     setError(null);
-    
+
     if (!data.start_time || !data.end_time) {
       setError('Please provide both start time and end time');
       return;
     }
-    
+
     api.post('/api/availability', {
       day: format(editDate, 'yyyy-MM-dd'),
       start_time: data.start_time,
@@ -441,10 +426,10 @@ const AdminDashboard = () => {
       .then(() => {
         setShowSuccess('Availability updated!');
         setTimeout(() => setShowSuccess(null), 2000);
-        
+
         // Refresh date details automatically
         fetchDateDetailsForDate(editDate);
-        
+
         // Refresh available days
         api.get('/api/availability/dates').then((data: { availableDates: string[] }) => {
           if (data && Array.isArray(data.availableDates)) setAvailableDays(data.availableDates);
@@ -464,26 +449,26 @@ const AdminDashboard = () => {
   // Handler for blocking time on a single day
   const onBlockSingleDay = (data: BlockTimeFormData) => {
     if (!editDate) return;
-    
+
     const payload = {
       ...data,
       day: format(editDate, 'yyyy-MM-dd'),
     };
-    
+
     // Validate required fields on frontend
     if (!payload.start_time || !payload.end_time || !payload.day) {
       setError('Please fill in all required fields (start time and end time)');
       return;
     }
-    
+
     api.post('/api/availability/block', payload)
       .then(() => {
         setShowSuccess('Time blocked successfully!');
         setTimeout(() => setShowSuccess(null), 2000);
-        
+
         // Refresh date details automatically
         fetchDateDetailsForDate(editDate);
-        
+
         // Reset form
         reset();
         setSingleDayAction('editHours');
@@ -500,18 +485,18 @@ const AdminDashboard = () => {
   // Handler for unblocking a specific time slot
   const onUnblockTime = (blockId: string) => {
     if (!editDate) return;
-    
+
     if (!blockId || blockId === 'undefined') {
       if (import.meta.env.DEV) console.error('Invalid blockId:', blockId);
       setError('Cannot unblock: Invalid block ID');
       return;
     }
-    
+
     api.del(`/api/availability/unblock/${blockId}`)
       .then(() => {
         setShowSuccess('Time unblocked successfully!');
         setTimeout(() => setShowSuccess(null), 2000);
-        
+
         // Refresh date details automatically
         fetchDateDetailsForDate(editDate);
       })
@@ -523,16 +508,16 @@ const AdminDashboard = () => {
     setLoadingDateDetails(true);
     try {
       const dateStr = format(date, 'yyyy-MM-dd');
-      
+
       // Use the new admin endpoint to get raw availability data
       const response = await api.get(`/api/availability/admin?day=${dateStr}`);
-      
-      
+
+
       setDateDetails({
         availableSlots: response?.availableSlots || [],
         blockedSlots: response?.blockedSlots || []
       });
-      
+
       // Set edit times from first available slot
       const firstAvailable = response?.availableSlots?.[0];
       if (firstAvailable) {
@@ -541,7 +526,7 @@ const AdminDashboard = () => {
           end_time: firstAvailable.end_time,
         });
       }
-      
+
       setShowDateDetails(true);
     } catch (error) {
       if (import.meta.env.DEV) console.error('Error fetching date details:', error);
@@ -576,7 +561,7 @@ const AdminDashboard = () => {
     const bookingDate = new Date(booking.date);
     const today = new Date();
     today.setHours(0, 0, 0, 0);
-    
+
     if (showPastBookings) {
       if (bookingDate >= today) return false;
     } else {
@@ -588,33 +573,20 @@ const AdminDashboard = () => {
     if (dateRange) {
       return bookingDate >= dateRange.start && bookingDate < dateRange.end;
     }
-    
+
     return true;
   });
+
+  useEffect(() => {
+    const viewportWidth = window.innerWidth;
+  }, [isMenuOpen, activeTab]);
 
   if (loading) return <div className="flex justify-center items-center h-screen"><div className="animate-spin rounded-full h-12 w-12 border-t-4 border-pink-accent"></div></div>;
   if (error) return <div className="flex justify-center items-center h-screen text-red-500">Error: {error}. <button onClick={() => window.location.reload()} className="ml-2 text-pink-accent underline">Retry</button></div>;
 
-  // #region agent log
-  useEffect(() => {
-    const viewportWidth = window.innerWidth;
-    const isMobile = viewportWidth < 768;
-    fetch('http://127.0.0.1:7242/ingest/e7494785-1fe6-47f3-8df4-c77793040f40',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'AdminDashboard.tsx:1005',message:'Dashboard render - viewport check',data:{viewportWidth,isMobile,isMenuOpen,activeTab},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'D'})}).catch(()=>{});
-  }, [isMenuOpen, activeTab]);
-  // #endregion
-
   return (
-    <div 
-      className="relative min-h-screen flex flex-col md:flex-row"
-      ref={(el) => {
-        // #region agent log
-        if (el) {
-          const rect = el.getBoundingClientRect();
-          const styles = window.getComputedStyle(el);
-          fetch('http://127.0.0.1:7242/ingest/e7494785-1fe6-47f3-8df4-c77793040f40',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'AdminDashboard.tsx:1006',message:'Container element dimensions',data:{width:rect.width,height:rect.height,top:rect.top,left:rect.left,display:styles.display,flexDirection:styles.flexDirection,viewportWidth:window.innerWidth},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'E'})}).catch(()=>{});
-        }
-        // #endregion
-      }}
+    <div
+      className="relative min-h-[calc(100vh-64px)] flex flex-col md:flex-row"
     >
       <AnimatedBackground />
       <Sidebar
@@ -625,33 +597,15 @@ const AdminDashboard = () => {
         onLogout={handleLogout}
       />
       {/* Main content area */}
-      <main 
-        className="relative z-10 flex-1 p-2 sm:p-3 md:p-4 lg:p-6 xl:p-8 overflow-x-hidden overflow-y-auto w-full min-h-screen md:min-h-screen pt-12 md:pt-0"
-        ref={(el) => {
-          // #region agent log
-          if (el) {
-            const rect = el.getBoundingClientRect();
-            const styles = window.getComputedStyle(el);
-            fetch('http://127.0.0.1:7242/ingest/e7494785-1fe6-47f3-8df4-c77793040f40',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'AdminDashboard.tsx:1060',message:'Main content element dimensions',data:{width:rect.width,height:rect.height,top:rect.top,left:rect.left,zIndex:styles.zIndex,display:styles.display,position:styles.position,isMenuOpen},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
-          }
-          // #endregion
-        }}
+      <main
+        className="relative z-10 flex-1 p-2 sm:p-3 md:p-4 lg:p-6 xl:p-8 overflow-x-hidden overflow-y-auto w-full md:h-[calc(100vh-64px)] pt-0 md:pt-4"
       >
-        <motion.div 
+        <motion.div
           key={activeTab}
-          initial={{ opacity: 0, y: 20 }}
+          initial={{ opacity: 0, y: 0 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5 }}
           className="max-w-full sm:max-w-7xl mx-auto space-y-3 sm:space-y-4 md:space-y-6 lg:space-y-8"
-          ref={(el) => {
-            // #region agent log
-            if (el) {
-              const rect = el.getBoundingClientRect();
-              const parentRect = el.parentElement?.getBoundingClientRect();
-              fetch('http://127.0.0.1:7242/ingest/e7494785-1fe6-47f3-8df4-c77793040f40',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'AdminDashboard.tsx:1067',message:'Content wrapper dimensions',data:{width:rect.width,height:rect.height,top:rect.top,left:rect.left,parentWidth:parentRect?.width,parentHeight:parentRect?.height,activeTab,isMenuOpen},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
-            }
-            // #endregion
-          }}
         >
           {activeTab === 'Overview' && (
             <OverviewTab
@@ -717,23 +671,23 @@ const AdminDashboard = () => {
                   const twoMonthsFromNow = addMonths(today, 2);
                   const startDate = format(today, 'yyyy-MM-dd');
                   const endDate = format(twoMonthsFromNow, 'yyyy-MM-dd');
-                  
-                  const result = await api.post('/api/availability/sync', { 
+
+                  const result = await api.post('/api/availability/sync', {
                     startDate,
                     endDate
                   });
-                  
+
                   setShowSuccess(`✅ Synced ${result.synced || 0} time slots from Google Calendar`);
                   setTimeout(() => setShowSuccess(null), 8000);
-                  
+
                   // Refresh available dates after sync
                   api.get('/api/availability/dates').then((data: { availableDates: string[] }) => {
                     if (data && Array.isArray(data.availableDates)) {
                       const today = new Date();
-                      today.setHours(0,0,0,0);
+                      today.setHours(0, 0, 0, 0);
                       const available = data.availableDates.filter((dateStr: string) => {
                         const dateObj = new Date(dateStr);
-                        dateObj.setHours(0,0,0,0);
+                        dateObj.setHours(0, 0, 0, 0);
                         return dateObj >= today;
                       });
                       setAvailableDays(available);
@@ -773,9 +727,6 @@ const AdminDashboard = () => {
           )}
           {activeTab === 'Analytics' && (
             <>
-              {/* #region agent log */}
-              {(() => { fetch('http://127.0.0.1:7242/ingest/e7494785-1fe6-47f3-8df4-c77793040f40',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'AdminDashboard.tsx:774',message:'Rendering AnalyticsTab',data:{activeTab,hasAnalytics:!!analytics},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B,E'})}).catch(()=>{}); return null; })()}
-              {/* #endregion */}
               <AnalyticsTab
                 analytics={analytics}
                 bookings={bookings}
@@ -795,11 +746,11 @@ const AdminDashboard = () => {
                   <p className="text-sm sm:text-base text-gray-600 mt-1">Today's summary and key metrics</p>
                 </div>
                 <div className="text-xs sm:text-sm text-gray-500 break-words">
-                  {new Date().toLocaleDateString('en-US', { 
-                    weekday: 'short', 
-                    year: 'numeric', 
-                    month: 'short', 
-                    day: 'numeric' 
+                  {new Date().toLocaleDateString('en-US', {
+                    weekday: 'short',
+                    year: 'numeric',
+                    month: 'short',
+                    day: 'numeric'
                   })}
                 </div>
               </div>
@@ -917,7 +868,7 @@ const AdminDashboard = () => {
                       })()} today
                     </span>
                   </div>
-                  
+
                   <div className="space-y-3">
                     {(() => {
                       const today = new Date().toDateString();
@@ -925,7 +876,7 @@ const AdminDashboard = () => {
                         .filter(b => new Date(b.date).toDateString() === today)
                         .sort((a, b) => a.time.localeCompare(b.time))
                         .slice(0, 5); // Show first 5 appointments
-                      
+
                       if (todaysBookings.length === 0) {
                         return (
                           <div className="text-center py-8 text-gray-500">
@@ -937,7 +888,7 @@ const AdminDashboard = () => {
                           </div>
                         );
                       }
-                      
+
                       return todaysBookings.map((booking) => (
                         <div key={booking.id} className="flex items-center gap-4 p-3 bg-orange-50 rounded-xl border border-orange-200">
                           <div className="bg-orange-100 text-orange-600 px-3 py-1 rounded-lg font-semibold text-sm">
@@ -953,14 +904,14 @@ const AdminDashboard = () => {
                         </div>
                       ));
                     })()}
-                    
+
                     {(() => {
                       const today = new Date().toDateString();
                       const todaysBookings = bookings.filter(b => new Date(b.date).toDateString() === today);
                       if (todaysBookings.length > 5) {
                         return (
                           <div className="text-center pt-3">
-                            <button 
+                            <button
                               onClick={() => setActiveTab('Bookings')}
                               className="text-orange-600 hover:text-orange-700 font-medium text-sm"
                             >
@@ -981,13 +932,13 @@ const AdminDashboard = () => {
                     </svg>
                     Quick Stats
                   </h3>
-                  
+
                   <div className="space-y-4">
                     <div className="flex items-center justify-between p-3 bg-pink-50 rounded-xl">
                       <span className="text-gray-700 font-medium">Most Booked Service</span>
                       <span className="font-bold text-pink-accent">{analytics.mostBooked || 'No data yet'}</span>
                     </div>
-                    
+
                     <div className="flex items-center justify-between p-3 bg-blue-50 rounded-xl">
                       <span className="text-gray-700 font-medium">This Week</span>
                       <span className="font-bold text-baby-blue">
@@ -996,7 +947,7 @@ const AdminDashboard = () => {
                           startOfWeek.setDate(startOfWeek.getDate() - startOfWeek.getDay());
                           const endOfWeek = new Date(startOfWeek);
                           endOfWeek.setDate(startOfWeek.getDate() + 6);
-                          
+
                           return bookings.filter(b => {
                             const bookingDate = new Date(b.date);
                             return bookingDate >= startOfWeek && bookingDate <= endOfWeek;
@@ -1004,7 +955,7 @@ const AdminDashboard = () => {
                         })()} appointments
                       </span>
                     </div>
-                    
+
                     <div className="flex items-center justify-between p-3 bg-green-50 rounded-xl">
                       <span className="text-gray-700 font-medium">This Month Revenue</span>
                       <span className="font-bold text-green-600">
@@ -1018,7 +969,7 @@ const AdminDashboard = () => {
                         })())}
                       </span>
                     </div>
-                    
+
                     <div className="flex items-center justify-between p-3 bg-purple-50 rounded-xl">
                       <span className="text-gray-700 font-medium">Total Clients</span>
                       <span className="font-bold text-purple-600">
@@ -1052,7 +1003,7 @@ const AdminDashboard = () => {
                     </div>
                     <span className="font-medium text-gray-800">View All Bookings</span>
                   </button>
-                  
+
                   <button
                     onClick={() => setActiveTab('Manage Services')}
                     className="bg-white/70 p-4 rounded-xl hover:bg-white/90 transition flex items-center gap-3 text-left"
@@ -1064,7 +1015,7 @@ const AdminDashboard = () => {
                     </div>
                     <span className="font-medium text-gray-800">Add New Service</span>
                   </button>
-                  
+
                   <button
                     onClick={() => setActiveTab('Availability')}
                     className="bg-white/70 p-4 rounded-xl hover:bg-white/90 transition flex items-center gap-3 text-left"
@@ -1076,7 +1027,7 @@ const AdminDashboard = () => {
                     </div>
                     <span className="font-medium text-gray-800">Set Availability</span>
                   </button>
-                  
+
                   <button
                     onClick={() => setActiveTab('Analytics')}
                     className="bg-white/70 p-4 rounded-xl hover:bg-white/90 transition flex items-center gap-3 text-left"
@@ -1196,14 +1147,14 @@ const AdminDashboard = () => {
 
               {/* Action Buttons */}
               <div className="flex flex-col sm:flex-row gap-4">
-                <button 
+                <button
                   onClick={() => {
                     setEditingService(null);
                     setIsAddingAddon(false);
                     reset({ is_addon: false });
                     setModalType('serviceForm');
                     setShowModal(true);
-                  }} 
+                  }}
                   className="bg-gradient-to-r from-pink-accent to-pink-accent/80 text-white px-8 py-4 rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 font-semibold flex items-center justify-center gap-3"
                 >
                   <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -1211,14 +1162,14 @@ const AdminDashboard = () => {
                   </svg>
                   Add Main Service
                 </button>
-                <button 
+                <button
                   onClick={() => {
                     setEditingService(null);
                     setIsAddingAddon(true);
                     reset({ is_addon: true });
                     setModalType('serviceForm');
                     setShowModal(true);
-                  }} 
+                  }}
                   className="bg-gradient-to-r from-purple-600 to-purple-500 text-white px-8 py-4 rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 font-semibold flex items-center justify-center gap-3"
                 >
                   <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -1245,7 +1196,7 @@ const AdminDashboard = () => {
                     {mainServices.length} service{mainServices.length !== 1 ? 's' : ''}
                   </span>
                 </div>
-                
+
                 {mainServices.length > 0 ? (
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
                     {mainServices.map((service) => (
@@ -1288,8 +1239,8 @@ const AdminDashboard = () => {
                           </div>
                         </div>
                         <div className="flex gap-3">
-                          <button 
-                            onClick={() => openEditModal(service)} 
+                          <button
+                            onClick={() => openEditModal(service)}
                             className="flex-1 bg-baby-blue text-white px-4 py-3 rounded-xl font-medium hover:bg-baby-blue/80 transition-all duration-200 flex items-center justify-center gap-2"
                           >
                             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -1297,8 +1248,8 @@ const AdminDashboard = () => {
                             </svg>
                             Edit
                           </button>
-                          <button 
-                            onClick={() => onDeleteService(service.id)} 
+                          <button
+                            onClick={() => onDeleteService(service.id)}
                             className="flex-1 bg-red-500 text-white px-4 py-3 rounded-xl font-medium hover:bg-red-600 transition-all duration-200 flex items-center justify-center gap-2"
                           >
                             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -1323,7 +1274,7 @@ const AdminDashboard = () => {
                     </motion.div>
                     <h3 className="text-xl font-semibold text-gray-600 mb-3">No main services yet</h3>
                     <p className="text-gray-500 mb-6 max-w-md mx-auto">Create your first main service to start offering beauty treatments to your clients</p>
-                    <button 
+                    <button
                       onClick={() => {
                         setEditingService(null);
                         setIsAddingAddon(false);
@@ -1360,7 +1311,7 @@ const AdminDashboard = () => {
                     {addOns.length} add-on{addOns.length !== 1 ? 's' : ''}
                   </span>
                 </div>
-                
+
                 {addOns.length > 0 ? (
                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-6">
                     {addOns.map((addon) => (
@@ -1403,8 +1354,8 @@ const AdminDashboard = () => {
                           </div>
                         </div>
                         <div className="flex gap-2">
-                          <button 
-                            onClick={() => openEditModal(addon)} 
+                          <button
+                            onClick={() => openEditModal(addon)}
                             className="flex-1 bg-baby-blue text-white px-3 py-2 rounded-xl font-medium hover:bg-baby-blue/80 transition-all duration-200 flex items-center justify-center gap-1 text-sm"
                           >
                             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -1412,8 +1363,8 @@ const AdminDashboard = () => {
                             </svg>
                             Edit
                           </button>
-                          <button 
-                            onClick={() => onDeleteService(addon.id)} 
+                          <button
+                            onClick={() => onDeleteService(addon.id)}
                             className="flex-1 bg-red-500 text-white px-3 py-2 rounded-xl font-medium hover:bg-red-600 transition-all duration-200 flex items-center justify-center gap-1 text-sm"
                           >
                             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -1438,7 +1389,7 @@ const AdminDashboard = () => {
                     </motion.div>
                     <h3 className="text-xl font-semibold text-gray-600 mb-3">No add-on services yet</h3>
                     <p className="text-gray-500 mb-6 max-w-md mx-auto">Create optional add-on services to enhance your main treatments and increase revenue</p>
-                    <button 
+                    <button
                       onClick={() => {
                         setEditingService(null);
                         setIsAddingAddon(true);
@@ -1528,7 +1479,7 @@ const AdminDashboard = () => {
                       startOfWeek.setDate(startOfWeek.getDate() - startOfWeek.getDay());
                       const endOfWeek = new Date(startOfWeek);
                       endOfWeek.setDate(startOfWeek.getDate() + 6);
-                      
+
                       return availableDays.filter(dateStr => {
                         const date = new Date(dateStr);
                         return date >= startOfWeek && date <= endOfWeek;
@@ -1644,9 +1595,9 @@ const AdminDashboard = () => {
                         const isSelected = selectedDays.some(d => d.toDateString() === date.toDateString());
                         const isAvailable = availableDays.includes(format(date, 'yyyy-MM-dd'));
                         const today = new Date();
-                        today.setHours(0,0,0,0);
+                        today.setHours(0, 0, 0, 0);
                         const dateObj = new Date(date);
-                        dateObj.setHours(0,0,0,0);
+                        dateObj.setHours(0, 0, 0, 0);
                         if (isAvailable && dateObj >= today) return 'bg-pink-accent/60 text-gray-900 font-bold rounded-full border-2 border-pink-accent';
                         if (isSelected) return 'bg-blue-500/60 text-gray-900 font-bold rounded-full border-2 border-blue-500';
                         return '';
@@ -1708,8 +1659,8 @@ const AdminDashboard = () => {
                       Quick Actions
                     </h3>
                     <div className="space-y-3">
-                      <button 
-                        onClick={() => { setModalType('blockTime'); setShowModal(true); }} 
+                      <button
+                        onClick={() => { setModalType('blockTime'); setShowModal(true); }}
                         className="w-full bg-gradient-to-r from-red-500 to-red-400 text-white px-4 py-3 rounded-xl shadow-sm hover:shadow-md transition-all duration-200 font-medium flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
                         disabled={selectedDays.length === 0}
                       >
@@ -1718,9 +1669,9 @@ const AdminDashboard = () => {
                         </svg>
                         Block Selected Days
                       </button>
-                      
-                      <button 
-                        onClick={() => { setModalType('openHours'); setShowModal(true); }} 
+
+                      <button
+                        onClick={() => { setModalType('openHours'); setShowModal(true); }}
                         className="w-full bg-gradient-to-r from-green-500 to-green-400 text-white px-4 py-3 rounded-xl shadow-sm hover:shadow-md transition-all duration-200 font-medium flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
                         disabled={selectedDays.length === 0}
                       >
@@ -1729,8 +1680,8 @@ const AdminDashboard = () => {
                         </svg>
                         Set Open Hours
                       </button>
-                      
-                      <button 
+
+                      <button
                         onClick={async () => {
                           try {
                             setShowSuccess('🔄 Syncing Google Calendar (this may take up to 60 seconds)...');
@@ -1738,23 +1689,23 @@ const AdminDashboard = () => {
                             const twoMonthsFromNow = addMonths(today, 2);
                             const startDate = format(today, 'yyyy-MM-dd');
                             const endDate = format(twoMonthsFromNow, 'yyyy-MM-dd');
-                            
-                            const result = await api.post('/api/availability/sync', { 
+
+                            const result = await api.post('/api/availability/sync', {
                               startDate,
                               endDate
                             });
-                            
+
                             setShowSuccess(`✅ Synced ${result.synced || 0} time slots from Google Calendar`);
                             setTimeout(() => setShowSuccess(null), 8000);
-                            
+
                             // Refresh available dates after sync
                             api.get('/api/availability/dates').then((data: { availableDates: string[] }) => {
                               if (data && Array.isArray(data.availableDates)) {
                                 const today = new Date();
-                                today.setHours(0,0,0,0);
+                                today.setHours(0, 0, 0, 0);
                                 const available = data.availableDates.filter((dateStr: string) => {
                                   const dateObj = new Date(dateStr);
-                                  dateObj.setHours(0,0,0,0);
+                                  dateObj.setHours(0, 0, 0, 0);
                                   return dateObj >= today;
                                 });
                                 setAvailableDays(available);
@@ -1765,7 +1716,7 @@ const AdminDashboard = () => {
                             setShowSuccess(`❌ Sync failed: ${errorMsg}. Please try again.`);
                             setTimeout(() => setShowSuccess(null), 8000);
                           }
-                        }} 
+                        }}
                         className="w-full bg-gradient-to-r from-blue-500 to-blue-400 text-white px-4 py-3 rounded-xl shadow-sm hover:shadow-md active:scale-[0.98] transition-all duration-200 font-medium flex items-center justify-center gap-2 touch-manipulation"
                       >
                         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -1796,7 +1747,7 @@ const AdminDashboard = () => {
                 <div className="flex flex-col items-start">
                   <h1 className="text-3xl font-bold text-pink-accent">Bookings</h1>
                   <p className="text-gray-600 mt-1">
-                    {searchTerm 
+                    {searchTerm
                       ? `${filteredBookings.length} of ${showPastBookings ? bookings.filter(b => new Date(b.date) < new Date()).length : bookings.filter(b => new Date(b.date) >= new Date()).length} ${showPastBookings ? 'past' : 'upcoming'} bookings`
                       : `${filteredBookings.length} ${showPastBookings ? 'past' : 'upcoming'} bookings`
                     }
@@ -1836,21 +1787,19 @@ const AdminDashboard = () => {
                 <div className="bg-white/90 backdrop-blur-md rounded-full p-1 shadow-soft">
                   <button
                     onClick={() => setShowPastBookings(false)}
-                    className={`px-6 py-2 rounded-full font-semibold transition-all duration-300 ${
-                      !showPastBookings 
-                        ? 'bg-pink-accent text-white shadow-md' 
-                        : 'text-gray-600 hover:text-pink-accent'
-                    }`}
+                    className={`px-6 py-2 rounded-full font-semibold transition-all duration-300 ${!showPastBookings
+                      ? 'bg-pink-accent text-white shadow-md'
+                      : 'text-gray-600 hover:text-pink-accent'
+                      }`}
                   >
                     Upcoming Bookings
                   </button>
                   <button
                     onClick={() => setShowPastBookings(true)}
-                    className={`px-6 py-2 rounded-full font-semibold transition-all duration-300 ${
-                      showPastBookings 
-                        ? 'bg-pink-accent text-white shadow-md' 
-                        : 'text-gray-600 hover:text-pink-accent'
-                    }`}
+                    className={`px-6 py-2 rounded-full font-semibold transition-all duration-300 ${showPastBookings
+                      ? 'bg-pink-accent text-white shadow-md'
+                      : 'text-gray-600 hover:text-pink-accent'
+                      }`}
                   >
                     Past Bookings
                   </button>
@@ -1864,15 +1813,14 @@ const AdminDashboard = () => {
                     <button
                       key={filter}
                       onClick={() => setTimeFilter(filter)}
-                      className={`px-2 sm:px-4 py-3 rounded-xl font-medium transition-all duration-300 text-xs sm:text-sm ${
-                        timeFilter === filter 
-                          ? 'bg-baby-blue text-white shadow-md' 
-                          : 'text-gray-600 hover:text-baby-blue hover:bg-baby-blue/10'
-                      }`}
+                      className={`px-2 sm:px-4 py-3 rounded-xl font-medium transition-all duration-300 text-xs sm:text-sm ${timeFilter === filter
+                        ? 'bg-baby-blue text-white shadow-md'
+                        : 'text-gray-600 hover:text-baby-blue hover:bg-baby-blue/10'
+                        }`}
                     >
-                      {filter === 'today' ? 'Today' : 
-                       filter === 'week' ? 'This Week' : 
-                       filter === 'month' ? 'This Month' : 'All'}
+                      {filter === 'today' ? 'Today' :
+                        filter === 'week' ? 'This Week' :
+                          filter === 'month' ? 'This Month' : 'All'}
                     </button>
                   ))}
                 </div>
@@ -1889,11 +1837,11 @@ const AdminDashboard = () => {
                           <div className="flex items-center gap-3 mb-4">
                             <div className="w-2 h-2 bg-pink-accent rounded-full"></div>
                             <h3 className="text-xl font-bold text-gray-800">
-                              {new Date(dateKey).toLocaleDateString('en-US', { 
-                                weekday: 'long', 
-                                year: 'numeric', 
-                                month: 'long', 
-                                day: 'numeric' 
+                              {new Date(dateKey).toLocaleDateString('en-US', {
+                                weekday: 'long',
+                                year: 'numeric',
+                                month: 'long',
+                                day: 'numeric'
                               })}
                             </h3>
                             <span className="bg-pink-accent/10 text-pink-accent px-3 py-1 rounded-full text-sm font-medium">
@@ -1902,8 +1850,8 @@ const AdminDashboard = () => {
                           </div>
                           <div className="space-y-3">
                             {groupedByDate[dateKey].map((booking) => (
-                              <div 
-                                key={booking.id} 
+                              <div
+                                key={booking.id}
                                 className="bg-white p-4 rounded-xl shadow-md border border-baby-blue/20 hover:shadow-lg transition cursor-pointer"
                                 onClick={() => openBookingDetailsModal(booking)}
                               >
@@ -1926,7 +1874,7 @@ const AdminDashboard = () => {
                                   </div>
                                   {!showPastBookings && (
                                     <div className="flex gap-2 pt-2">
-                                      <button 
+                                      <button
                                         onClick={(e) => {
                                           e.stopPropagation();
                                           openEditBookingModal(booking);
@@ -1935,7 +1883,7 @@ const AdminDashboard = () => {
                                       >
                                         Edit
                                       </button>
-                                      <button 
+                                      <button
                                         onClick={(e) => {
                                           e.stopPropagation();
                                           onCancelBooking(booking.token);
@@ -1966,7 +1914,7 @@ const AdminDashboard = () => {
                                   </div>
                                   {!showPastBookings && (
                                     <div className="flex-shrink-0 flex gap-2">
-                                      <button 
+                                      <button
                                         onClick={(e) => {
                                           e.stopPropagation();
                                           openEditBookingModal(booking);
@@ -1975,7 +1923,7 @@ const AdminDashboard = () => {
                                       >
                                         Edit
                                       </button>
-                                      <button 
+                                      <button
                                         onClick={(e) => {
                                           e.stopPropagation();
                                           onCancelBooking(booking.token);
@@ -2002,10 +1950,10 @@ const AdminDashboard = () => {
                           <div className="flex items-center gap-3 mb-4">
                             <div className="w-2 h-2 bg-baby-blue rounded-full"></div>
                             <h3 className="text-lg font-bold text-gray-800">
-                              {new Date(dateKey).toLocaleDateString('en-US', { 
-                                weekday: 'long', 
-                                month: 'short', 
-                                day: 'numeric' 
+                              {new Date(dateKey).toLocaleDateString('en-US', {
+                                weekday: 'long',
+                                month: 'short',
+                                day: 'numeric'
                               })}
                             </h3>
                             <span className="bg-baby-blue/10 text-baby-blue px-3 py-1 rounded-full text-sm font-medium">
@@ -2014,8 +1962,8 @@ const AdminDashboard = () => {
                           </div>
                           <div className="grid gap-3">
                             {groupedByDate[dateKey].map((booking) => (
-                              <div 
-                                key={booking.id} 
+                              <div
+                                key={booking.id}
                                 className="bg-white p-4 rounded-xl shadow-md border border-baby-blue/20 hover:shadow-lg transition cursor-pointer"
                                 onClick={() => openBookingDetailsModal(booking)}
                               >
@@ -2037,7 +1985,7 @@ const AdminDashboard = () => {
                                   </div>
                                   {!showPastBookings && (
                                     <div className="flex gap-2 pt-2">
-                                      <button 
+                                      <button
                                         onClick={(e) => {
                                           e.stopPropagation();
                                           openEditBookingModal(booking);
@@ -2046,7 +1994,7 @@ const AdminDashboard = () => {
                                       >
                                         Edit
                                       </button>
-                                      <button 
+                                      <button
                                         onClick={(e) => {
                                           e.stopPropagation();
                                           onCancelBooking(booking.token);
@@ -2078,7 +2026,7 @@ const AdminDashboard = () => {
                                     </div>
                                     {!showPastBookings && (
                                       <div className="flex gap-2">
-                                        <button 
+                                        <button
                                           onClick={(e) => {
                                             e.stopPropagation();
                                             openEditBookingModal(booking);
@@ -2087,7 +2035,7 @@ const AdminDashboard = () => {
                                         >
                                           Edit
                                         </button>
-                                        <button 
+                                        <button
                                           onClick={(e) => {
                                             e.stopPropagation();
                                             onCancelBooking(booking.token);
@@ -2123,8 +2071,8 @@ const AdminDashboard = () => {
                           </div>
                           <div className="grid gap-3">
                             {groupedByWeek[weekKey].map((booking) => (
-                              <div 
-                                key={booking.id} 
+                              <div
+                                key={booking.id}
                                 className="bg-white p-4 rounded-xl shadow-md border border-purple-200 hover:shadow-lg transition cursor-pointer"
                                 onClick={() => openBookingDetailsModal(booking)}
                               >
@@ -2149,7 +2097,7 @@ const AdminDashboard = () => {
                                   </div>
                                   {!showPastBookings && (
                                     <div className="flex gap-2 pt-2">
-                                      <button 
+                                      <button
                                         onClick={(e) => {
                                           e.stopPropagation();
                                           openEditBookingModal(booking);
@@ -2158,7 +2106,7 @@ const AdminDashboard = () => {
                                       >
                                         Edit
                                       </button>
-                                      <button 
+                                      <button
                                         onClick={(e) => {
                                           e.stopPropagation();
                                           onCancelBooking(booking.token);
@@ -2193,7 +2141,7 @@ const AdminDashboard = () => {
                                     </div>
                                     {!showPastBookings && (
                                       <div className="flex gap-2">
-                                        <button 
+                                        <button
                                           onClick={(e) => {
                                             e.stopPropagation();
                                             openEditBookingModal(booking);
@@ -2202,7 +2150,7 @@ const AdminDashboard = () => {
                                         >
                                           Edit
                                         </button>
-                                        <button 
+                                        <button
                                           onClick={(e) => {
                                             e.stopPropagation();
                                             onCancelBooking(booking.token);
@@ -2243,8 +2191,8 @@ const AdminDashboard = () => {
                           </div>
                           <div className="grid gap-3">
                             {groupedByMonth[monthKey].map((booking) => (
-                              <div 
-                                key={booking.id} 
+                              <div
+                                key={booking.id}
                                 className="bg-white p-4 rounded-xl shadow-md border border-gray-300/20 hover:shadow-lg transition cursor-pointer"
                                 onClick={() => openBookingDetailsModal(booking)}
                               >
@@ -2269,7 +2217,7 @@ const AdminDashboard = () => {
                                   </div>
                                   {!showPastBookings && (
                                     <div className="flex gap-2 pt-2">
-                                      <button 
+                                      <button
                                         onClick={(e) => {
                                           e.stopPropagation();
                                           openEditBookingModal(booking);
@@ -2278,7 +2226,7 @@ const AdminDashboard = () => {
                                       >
                                         Edit
                                       </button>
-                                      <button 
+                                      <button
                                         onClick={(e) => {
                                           e.stopPropagation();
                                           onCancelBooking(booking.token);
@@ -2313,20 +2261,20 @@ const AdminDashboard = () => {
                                     </div>
                                     {!showPastBookings && (
                                       <div className="flex gap-2">
-                                        <button 
+                                        <button
                                           onClick={(e) => {
                                             e.stopPropagation();
                                             openEditBookingModal(booking);
-                                          }} 
+                                          }}
                                           className="bg-baby-blue text-white px-3 py-2 rounded-lg hover:bg-baby-blue/80 transition text-sm"
                                         >
                                           Edit
                                         </button>
-                                        <button 
+                                        <button
                                           onClick={(e) => {
                                             e.stopPropagation();
                                             onCancelBooking(booking.token);
-                                          }} 
+                                          }}
                                           className="bg-red-500 text-white px-3 py-2 rounded-lg hover:bg-red-600 transition text-sm"
                                         >
                                           Cancel
@@ -2361,12 +2309,12 @@ const AdminDashboard = () => {
                 <div className="flex flex-col items-start">
                   <h1 className="text-3xl font-bold text-pink-accent">Clients</h1>
                   <p className="text-gray-600 mt-1">
-                    {clientSearchTerm 
-                      ? `${clients.filter(c => 
-                          c.name.toLowerCase().includes(clientSearchTerm.toLowerCase()) ||
-                          c.phone.includes(clientSearchTerm) ||
-                          c.email.toLowerCase().includes(clientSearchTerm.toLowerCase())
-                        ).length} of ${clients.length} clients`
+                    {clientSearchTerm
+                      ? `${clients.filter(c =>
+                        c.name.toLowerCase().includes(clientSearchTerm.toLowerCase()) ||
+                        c.phone.includes(clientSearchTerm) ||
+                        c.email.toLowerCase().includes(clientSearchTerm.toLowerCase())
+                      ).length} of ${clients.length} clients`
                       : `${clients.length} clients`
                     }
                   </p>
@@ -2418,7 +2366,7 @@ const AdminDashboard = () => {
                 </div>
               ) : (
                 <div className="space-y-4">
-                  {clients.filter(c => 
+                  {clients.filter(c =>
                     !clientSearchTerm ||
                     c.name.toLowerCase().includes(clientSearchTerm.toLowerCase()) ||
                     c.phone.includes(clientSearchTerm) ||
@@ -2429,7 +2377,7 @@ const AdminDashboard = () => {
                     </div>
                   ) : (
                     clients
-                      .filter(c => 
+                      .filter(c =>
                         !clientSearchTerm ||
                         c.name.toLowerCase().includes(clientSearchTerm.toLowerCase()) ||
                         c.phone.includes(clientSearchTerm) ||
@@ -2442,7 +2390,7 @@ const AdminDashboard = () => {
                         >
                           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                             <div className="flex-1">
-                              <h3 
+                              <h3
                                 onClick={() => {
                                   setSelectedClient({
                                     ...client,
@@ -2517,11 +2465,11 @@ const AdminDashboard = () => {
                   <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-pink-accent">Analytics Dashboard</h1>
                   <p className="text-sm sm:text-base text-gray-600 mt-1">Business insights and performance metrics</p>
                 </div>
-                
+
                 {/* Time Range Filter */}
                 <div className="bg-white rounded-xl p-2 shadow-soft">
-                  <select 
-                    value={analyticsTimeRange} 
+                  <select
+                    value={analyticsTimeRange}
                     onChange={(e) => setAnalyticsTimeRange(e.target.value as 'week' | 'month' | 'quarter' | 'year')}
                     className="bg-transparent border-none focus:outline-none text-gray-700 font-medium"
                   >
@@ -2535,7 +2483,7 @@ const AdminDashboard = () => {
 
               {/* Key Metrics Grid */}
               <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-6">
-                <motion.div 
+                <motion.div
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
                   className="bg-gradient-to-br from-pink-50 to-pink-100 p-6 rounded-2xl shadow-soft border border-pink-200"
@@ -2559,7 +2507,7 @@ const AdminDashboard = () => {
                   <p className="text-sm text-gray-600 mt-1">vs. previous period</p>
                 </motion.div>
 
-                <motion.div 
+                <motion.div
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: 0.1 }}
@@ -2582,7 +2530,7 @@ const AdminDashboard = () => {
                   <p className="text-sm text-gray-600 mt-1">appointments completed</p>
                 </motion.div>
 
-                <motion.div 
+                <motion.div
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: 0.2 }}
@@ -2605,7 +2553,7 @@ const AdminDashboard = () => {
                   <p className="text-sm text-gray-600 mt-1">unique customers</p>
                 </motion.div>
 
-                <motion.div 
+                <motion.div
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: 0.3 }}
@@ -2635,19 +2583,17 @@ const AdminDashboard = () => {
                   <div className="flex items-center justify-between mb-6">
                     <h3 className="text-xl font-bold text-gray-800">Revenue Trend</h3>
                     <div className="flex gap-2">
-                      <button 
+                      <button
                         onClick={() => setRevenueChartType('daily')}
-                        className={`px-3 py-1 rounded-lg text-sm font-medium transition ${
-                          revenueChartType === 'daily' ? 'bg-pink-accent text-white' : 'bg-gray-100 text-gray-600'
-                        }`}
+                        className={`px-3 py-1 rounded-lg text-sm font-medium transition ${revenueChartType === 'daily' ? 'bg-pink-accent text-white' : 'bg-gray-100 text-gray-600'
+                          }`}
                       >
                         Daily
                       </button>
-                      <button 
+                      <button
                         onClick={() => setRevenueChartType('weekly')}
-                        className={`px-3 py-1 rounded-lg text-sm font-medium transition ${
-                          revenueChartType === 'weekly' ? 'bg-pink-accent text-white' : 'bg-gray-100 text-gray-600'
-                        }`}
+                        className={`px-3 py-1 rounded-lg text-sm font-medium transition ${revenueChartType === 'weekly' ? 'bg-pink-accent text-white' : 'bg-gray-100 text-gray-600'
+                          }`}
                       >
                         Weekly
                       </button>
@@ -2660,7 +2606,7 @@ const AdminDashboard = () => {
                         <div key={index} className="flex items-center gap-3">
                           <div className="w-16 text-sm text-gray-600 font-medium">{item.label}</div>
                           <div className="flex-1 bg-gray-100 rounded-full h-3 relative overflow-hidden">
-                            <div 
+                            <div
                               className="h-full bg-gradient-to-r from-pink-accent to-pink-accent/80 rounded-full transition-all duration-500"
                               style={{ width: `${(item.value / Math.max(...analytics.revenueChart.map((i: any) => i.value))) * 100}%` }}
                             ></div>
@@ -2732,7 +2678,7 @@ const AdminDashboard = () => {
                           <span className="text-gray-700 font-medium">{hour.time}</span>
                           <div className="flex items-center gap-2">
                             <div className="w-20 bg-gray-100 rounded-full h-2 overflow-hidden">
-                              <div 
+                              <div
                                 className="h-full bg-orange-500 rounded-full transition-all duration-500"
                                 style={{ width: `${hour.percentage}%` }}
                               ></div>
@@ -2768,13 +2714,13 @@ const AdminDashboard = () => {
                         <span className="text-lg font-bold text-purple-600">{analytics.repeatCustomerRate}%</span>
                       </div>
                       <div className="w-full bg-purple-100 rounded-full h-2 overflow-hidden">
-                        <div 
+                        <div
                           className="h-full bg-purple-500 rounded-full transition-all duration-500"
                           style={{ width: `${analytics.repeatCustomerRate}%` }}
                         ></div>
                       </div>
                     </div>
-                    
+
                     <div className="space-y-3">
                       <div className="flex justify-between items-center">
                         <span className="text-gray-600">New Clients This Period</span>
@@ -2807,7 +2753,7 @@ const AdminDashboard = () => {
                         <div className="text-sm text-blue-700">Avg. bookings/day</div>
                       </div>
                     </div>
-                    
+
                     <div className="space-y-3">
                       <div className="flex justify-between items-center">
                         <span className="text-gray-600">Busiest Day</span>
@@ -2996,13 +2942,13 @@ const AdminDashboard = () => {
                           return bookingDate >= monthStart && bookingDate <= monthEnd;
                         })
                         .reduce((sum, b) => sum + (Number(b.price) || 0), 0);
-                      const monthProgress = analytics.monthlyGoal > 0 
-                        ? Math.min((monthRevenue / analytics.monthlyGoal) * 100, 100) 
+                      const monthProgress = analytics.monthlyGoal > 0
+                        ? Math.min((monthRevenue / analytics.monthlyGoal) * 100, 100)
                         : 0;
                       return (
                         <>
                           <div className="w-full bg-gray-200 rounded-full h-3 mb-2 overflow-hidden">
-                            <div 
+                            <div
                               className="h-full bg-gradient-to-r from-indigo-500 to-purple-500 rounded-full transition-all duration-700"
                               style={{ width: `${monthProgress}%` }}
                             ></div>
@@ -3061,13 +3007,13 @@ const AdminDashboard = () => {
                         const bookingDate = new Date(b.date);
                         return bookingDate >= monthStart && bookingDate <= monthEnd;
                       }).length;
-                      const bookingProgress = analytics.monthlyBookingGoal > 0 
-                        ? Math.min((monthBookings / analytics.monthlyBookingGoal) * 100, 100) 
+                      const bookingProgress = analytics.monthlyBookingGoal > 0
+                        ? Math.min((monthBookings / analytics.monthlyBookingGoal) * 100, 100)
                         : 0;
                       return (
                         <>
                           <div className="w-full bg-gray-200 rounded-full h-3 mb-2 overflow-hidden">
-                            <div 
+                            <div
                               className="h-full bg-gradient-to-r from-blue-500 to-indigo-500 rounded-full transition-all duration-700"
                               style={{ width: `${bookingProgress}%` }}
                             ></div>
@@ -3173,7 +3119,7 @@ const AdminDashboard = () => {
           )}
         </motion.div>
         {/* ...existing code... */}
-              {/* ...existing code... */}
+        {/* ...existing code... */}
         {modalType === 'editHours' && (
           <form onSubmit={handleSubmit(onEditOpenHours)}>
             <h2 className="text-2xl font-bold mb-4">Edit Open Hours for {format(editDate ?? new Date(), 'MMM d, yyyy')}</h2>
@@ -3198,7 +3144,7 @@ const AdminDashboard = () => {
           <div className="w-full max-w-6xl mx-auto">
             <div className="flex items-center justify-between mb-6">
               <h2 className="text-3xl font-bold text-gray-800">Manage Day - {format(editDate ?? new Date(), 'MMM d, yyyy')}</h2>
-              <button 
+              <button
                 onClick={closeModal}
                 className="text-gray-500 hover:text-gray-700 transition"
               >
@@ -3207,7 +3153,7 @@ const AdminDashboard = () => {
                 </svg>
               </button>
             </div>
-            
+
             {error && (
               <div className="mb-4 p-4 bg-red-100 border border-red-400 text-red-700 rounded-xl text-sm">
                 {error}
@@ -3235,7 +3181,7 @@ const AdminDashboard = () => {
                   </svg>
                   Date Overview
                 </h3>
-                
+
                 <div className="space-y-4">
                   <h4 className="font-medium text-gray-700 mb-3 flex items-center gap-2">
                     <svg className="w-4 h-4 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -3325,15 +3271,13 @@ const AdminDashboard = () => {
                     return (
                       <div className="grid gap-3">
                         {timeline.map((slot, index) => (
-                          <div key={index} className={`bg-white/70 rounded-xl p-4 flex items-center justify-between ${
-                            slot.type === 'available' ? 'border-l-4 border-green-500' : 'border-l-4 border-red-500'
-                          }`}>
+                          <div key={index} className={`bg-white/70 rounded-xl p-4 flex items-center justify-between ${slot.type === 'available' ? 'border-l-4 border-green-500' : 'border-l-4 border-red-500'
+                            }`}>
                             <div className="flex items-center gap-3">
-                              <div className={`px-3 py-1 rounded-lg text-sm font-medium ${
-                                slot.type === 'available' 
-                                  ? 'bg-green-100 text-green-700' 
-                                  : 'bg-red-100 text-red-700'
-                              }`}>
+                              <div className={`px-3 py-1 rounded-lg text-sm font-medium ${slot.type === 'available'
+                                ? 'bg-green-100 text-green-700'
+                                : 'bg-red-100 text-red-700'
+                                }`}>
                                 {slot.type === 'available' ? 'Available' : 'Blocked'}
                               </div>
                               <span className="text-gray-800 font-medium">
@@ -3359,7 +3303,7 @@ const AdminDashboard = () => {
                 </div>
               </div>
             ) : null}
-            
+
             {/* Toggle between Edit Hours and Block Time */}
             <div className="bg-white rounded-2xl p-4 sm:p-6 border border-gray-200 mb-6">
               <div className="flex mb-6 bg-gray-100 rounded-xl p-1">
@@ -3369,11 +3313,10 @@ const AdminDashboard = () => {
                     setSingleDayAction('editHours');
                     reset(); // Reset form when switching tabs
                   }}
-                  className={`flex-1 py-3 px-4 rounded-lg transition font-medium ${
-                    singleDayAction === 'editHours'
-                      ? 'bg-baby-blue text-white shadow-md'
-                      : 'text-gray-600 hover:text-gray-800'
-                  }`}
+                  className={`flex-1 py-3 px-4 rounded-lg transition font-medium ${singleDayAction === 'editHours'
+                    ? 'bg-baby-blue text-white shadow-md'
+                    : 'text-gray-600 hover:text-gray-800'
+                    }`}
                 >
                   Edit Hours
                 </button>
@@ -3383,11 +3326,10 @@ const AdminDashboard = () => {
                     setSingleDayAction('blockTime');
                     reset(); // Reset form when switching tabs
                   }}
-                  className={`flex-1 py-3 px-4 rounded-lg transition font-medium ${
-                    singleDayAction === 'blockTime'
-                      ? 'bg-baby-blue text-white shadow-md'
-                      : 'text-gray-600 hover:text-gray-800'
-                  }`}
+                  className={`flex-1 py-3 px-4 rounded-lg transition font-medium ${singleDayAction === 'blockTime'
+                    ? 'bg-baby-blue text-white shadow-md'
+                    : 'text-gray-600 hover:text-gray-800'
+                    }`}
                 >
                   Block Time
                 </button>
@@ -3402,43 +3344,43 @@ const AdminDashboard = () => {
                       </svg>
                       Set or update the open hours for this day
                     </h3>
-                    
+
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <div>
                         <label className="block text-sm font-medium text-gray-700 mb-2">
                           Start Time <span className="text-red-500">*</span>
                         </label>
-                        <input 
-                          {...register('start_time', { required: true })} 
+                        <input
+                          {...register('start_time', { required: true })}
                           type="time"
-                          defaultValue={editTimes?.start_time || ''} 
-                          className="block w-full p-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-baby-blue focus:border-baby-blue transition" 
+                          defaultValue={editTimes?.start_time || ''}
+                          className="block w-full p-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-baby-blue focus:border-baby-blue transition"
                         />
                       </div>
                       <div>
                         <label className="block text-sm font-medium text-gray-700 mb-2">
                           End Time <span className="text-red-500">*</span>
                         </label>
-                        <input 
-                          {...register('end_time', { required: true })} 
+                        <input
+                          {...register('end_time', { required: true })}
                           type="time"
-                          defaultValue={editTimes?.end_time || ''} 
-                          className="block w-full p-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-baby-blue focus:border-baby-blue transition" 
+                          defaultValue={editTimes?.end_time || ''}
+                          className="block w-full p-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-baby-blue focus:border-baby-blue transition"
                         />
                       </div>
                     </div>
                   </div>
-                  
+
                   <div className="flex flex-col sm:flex-row gap-3">
-                    <button 
-                      type="button" 
+                    <button
+                      type="button"
                       onClick={closeModal}
                       className="flex-1 bg-gray-200 text-gray-800 px-6 py-3 rounded-xl font-medium hover:bg-gray-300 transition"
                     >
                       Cancel
                     </button>
-                    <button 
-                      type="submit" 
+                    <button
+                      type="submit"
                       className="flex-1 bg-baby-blue text-white px-6 py-3 rounded-xl font-medium hover:bg-baby-blue/80 transition flex items-center justify-center gap-2"
                     >
                       <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -3457,52 +3399,52 @@ const AdminDashboard = () => {
                       </svg>
                       Block specific times on this day
                     </h3>
-                    
+
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <div>
                         <label className="block text-sm font-medium text-gray-700 mb-2">
                           Start Time <span className="text-red-500">*</span>
                         </label>
-                        <input 
-                          {...register('start_time', { required: true })} 
+                        <input
+                          {...register('start_time', { required: true })}
                           type="time"
-                          className="block w-full p-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-red-500 focus:border-red-500 transition" 
+                          className="block w-full p-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-red-500 focus:border-red-500 transition"
                         />
                       </div>
                       <div>
                         <label className="block text-sm font-medium text-gray-700 mb-2">
                           End Time <span className="text-red-500">*</span>
                         </label>
-                        <input 
-                          {...register('end_time', { required: true })} 
+                        <input
+                          {...register('end_time', { required: true })}
                           type="time"
-                          className="block w-full p-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-red-500 focus:border-red-500 transition" 
+                          className="block w-full p-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-red-500 focus:border-red-500 transition"
                         />
                       </div>
                     </div>
-                    
+
                     <div className="mt-4">
                       <label className="block text-sm font-medium text-gray-700 mb-2">
                         Reason for blocking (optional)
                       </label>
-                      <input 
-                        {...register('reason')} 
-                        placeholder="e.g., Personal appointment, Lunch break, etc." 
-                        className="block w-full p-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-red-500 focus:border-red-500 transition" 
+                      <input
+                        {...register('reason')}
+                        placeholder="e.g., Personal appointment, Lunch break, etc."
+                        className="block w-full p-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-red-500 focus:border-red-500 transition"
                       />
                     </div>
                   </div>
-                  
+
                   <div className="flex flex-col sm:flex-row gap-3">
-                    <button 
-                      type="button" 
+                    <button
+                      type="button"
                       onClick={closeModal}
                       className="flex-1 bg-gray-200 text-gray-800 px-6 py-3 rounded-xl font-medium hover:bg-gray-300 transition"
                     >
                       Cancel
                     </button>
-                    <button 
-                      type="submit" 
+                    <button
+                      type="submit"
                       className="flex-1 bg-red-500 text-white px-6 py-3 rounded-xl font-medium hover:bg-red-600 transition flex items-center justify-center gap-2"
                     >
                       <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -3520,7 +3462,7 @@ const AdminDashboard = () => {
           <div className="w-full max-w-6xl mx-auto">
             <div className="flex items-center justify-between mb-6">
               <h2 className="text-3xl font-bold text-gray-800">Block Dates/Times</h2>
-              <button 
+              <button
                 onClick={closeModal}
                 className="text-gray-500 hover:text-gray-700 transition"
               >
@@ -3551,53 +3493,53 @@ const AdminDashboard = () => {
                     </svg>
                     Block Time Details
                   </h3>
-                  
+
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-2">
                         Start Time <span className="text-red-500">*</span>
                       </label>
-                      <input 
-                        {...register('start_time', { required: true })} 
+                      <input
+                        {...register('start_time', { required: true })}
                         type="time"
-                        className="block w-full p-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-red-500 focus:border-red-500 transition" 
+                        className="block w-full p-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-red-500 focus:border-red-500 transition"
                       />
                     </div>
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-2">
                         End Time <span className="text-red-500">*</span>
                       </label>
-                      <input 
-                        {...register('end_time', { required: true })} 
+                      <input
+                        {...register('end_time', { required: true })}
                         type="time"
-                        className="block w-full p-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-red-500 focus:border-red-500 transition" 
+                        className="block w-full p-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-red-500 focus:border-red-500 transition"
                       />
                     </div>
                   </div>
-                  
+
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
                       Reason for blocking (optional)
                     </label>
-                    <input 
-                      {...register('reason')} 
-                      placeholder="e.g., Personal appointment, Lunch break, etc." 
-                      className="block w-full p-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-red-500 focus:border-red-500 transition" 
+                    <input
+                      {...register('reason')}
+                      placeholder="e.g., Personal appointment, Lunch break, etc."
+                      className="block w-full p-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-red-500 focus:border-red-500 transition"
                     />
                   </div>
                 </div>
               </div>
 
               <div className="flex flex-col sm:flex-row gap-3">
-                <button 
-                  type="button" 
+                <button
+                  type="button"
                   onClick={closeModal}
                   className="flex-1 bg-gray-200 text-gray-800 px-6 py-3 rounded-xl font-medium hover:bg-gray-300 transition"
                 >
                   Cancel
                 </button>
-                <button 
-                  type="submit" 
+                <button
+                  type="submit"
                   className="flex-1 bg-red-500 text-white px-6 py-3 rounded-xl font-medium hover:bg-red-600 transition flex items-center justify-center gap-2"
                 >
                   <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -3613,7 +3555,7 @@ const AdminDashboard = () => {
           <div className="w-full max-w-6xl mx-auto">
             <div className="flex items-center justify-between mb-6">
               <h2 className="text-3xl font-bold text-gray-800">Set Open Hours (Batch)</h2>
-              <button 
+              <button
                 onClick={closeModal}
                 className="text-gray-500 hover:text-gray-700 transition"
               >
@@ -3654,26 +3596,26 @@ const AdminDashboard = () => {
                     </svg>
                     Operating Hours
                   </h3>
-                  
+
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-2">
                         Start Time <span className="text-red-500">*</span>
                       </label>
-                      <input 
-                        {...register('start_time', { required: true })} 
+                      <input
+                        {...register('start_time', { required: true })}
                         type="time"
-                        className="block w-full p-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-green-500 transition" 
+                        className="block w-full p-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-green-500 transition"
                       />
                     </div>
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-2">
                         End Time <span className="text-red-500">*</span>
                       </label>
-                      <input 
-                        {...register('end_time', { required: true })} 
+                      <input
+                        {...register('end_time', { required: true })}
                         type="time"
-                        className="block w-full p-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-green-500 transition" 
+                        className="block w-full p-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-green-500 transition"
                       />
                     </div>
                   </div>
@@ -3681,15 +3623,15 @@ const AdminDashboard = () => {
               </div>
 
               <div className="flex flex-col sm:flex-row gap-3">
-                <button 
-                  type="button" 
+                <button
+                  type="button"
                   onClick={closeModal}
                   className="flex-1 bg-gray-200 text-gray-800 px-6 py-3 rounded-xl font-medium hover:bg-gray-300 transition"
                 >
                   Cancel
                 </button>
-                <button 
-                  type="submit" 
+                <button
+                  type="submit"
                   className="flex-1 bg-green-500 text-white px-6 py-3 rounded-xl font-medium hover:bg-green-600 transition flex items-center justify-center gap-2"
                 >
                   <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -3704,28 +3646,28 @@ const AdminDashboard = () => {
         {modalType === 'serviceForm' && (
           <form onSubmit={handleSubmit(onAddOrEditService)}>
             <h2 className="text-2xl font-bold mb-6 text-gray-800">
-              {editingService 
+              {editingService
                 ? (editingService.is_addon ? 'Edit Add-on' : 'Edit Service')
                 : (isAddingAddon ? 'Add New Add-on' : 'Add New Service')
               }
             </h2>
-            
+
             <div className="space-y-4 max-h-[70vh] overflow-y-auto pr-2">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">Service Name (English) *</label>
-                  <input 
-                    {...register('name_en', { required: 'English name is required' })} 
-                    placeholder="Enter service name in English" 
+                  <input
+                    {...register('name_en', { required: 'English name is required' })}
+                    placeholder="Enter service name in English"
                     className="block w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-accent focus:border-transparent transition"
                   />
                 </div>
-                
+
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">Service Name (Hebrew)</label>
-                  <input 
-                    {...register('name_he')} 
-                    placeholder="Enter service name in Hebrew" 
+                  <input
+                    {...register('name_he')}
+                    placeholder="Enter service name in Hebrew"
                     className="block w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-accent focus:border-transparent transition"
                   />
                 </div>
@@ -3735,19 +3677,19 @@ const AdminDashboard = () => {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">Description (English)</label>
-                  <textarea 
-                    {...register('description_en')} 
-                    placeholder="Enter service description in English" 
+                  <textarea
+                    {...register('description_en')}
+                    placeholder="Enter service description in English"
                     rows={3}
                     className="block w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-accent focus:border-transparent transition"
                   />
                 </div>
-                
+
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">Description (Hebrew)</label>
-                  <textarea 
-                    {...register('description_he')} 
-                    placeholder="Enter service description in Hebrew" 
+                  <textarea
+                    {...register('description_he')}
+                    placeholder="Enter service description in Hebrew"
                     rows={3}
                     className="block w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-accent focus:border-transparent transition"
                   />
@@ -3757,28 +3699,28 @@ const AdminDashboard = () => {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">Duration (minutes) *</label>
-                  <input 
-                    {...register('duration', { required: 'Duration is required', min: 0 })} 
-                    type="number" 
-                    placeholder="e.g. 60" 
+                  <input
+                    {...register('duration', { required: 'Duration is required', min: 0 })}
+                    type="number"
+                    placeholder="e.g. 60"
                     className="block w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-accent focus:border-transparent transition"
                   />
                 </div>
-                
+
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">Category</label>
-                  <input 
-                    {...register('category')} 
-                    placeholder="e.g. Facial, Hair, Nails" 
+                  <input
+                    {...register('category')}
+                    placeholder="e.g. Facial, Hair, Nails"
                     className="block w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-accent focus:border-transparent transition"
                   />
                 </div>
               </div>
-              
+
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">Price (₪) *</label>
-                <input 
-                  {...register('price', { 
+                <input
+                  {...register('price', {
                     required: 'Price is required',
                     validate: (value) => {
                       // Allow range format (e.g., "10-80") for Custom add-on
@@ -3801,10 +3743,10 @@ const AdminDashboard = () => {
                       }
                       return true;
                     }
-                  })} 
+                  })}
                   type={editingService?.name?.toLowerCase().includes('custom') ? 'text' : 'number'}
                   step={editingService?.name?.toLowerCase().includes('custom') ? undefined : "0.01"}
-                  placeholder={editingService?.name?.toLowerCase().includes('custom') ? "e.g. 10-80" : "e.g. 120.00"} 
+                  placeholder={editingService?.name?.toLowerCase().includes('custom') ? "e.g. 10-80" : "e.g. 120.00"}
                   className="block w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-accent focus:border-transparent transition"
                 />
                 {editingService?.name?.toLowerCase().includes('custom') && (
@@ -3814,9 +3756,9 @@ const AdminDashboard = () => {
 
               <div className="flex flex-col gap-3">
                 <div className="flex items-center">
-                  <input 
+                  <input
                     {...register('is_addon')}
-                    type="checkbox" 
+                    type="checkbox"
                     id="is_addon"
                     className="w-4 h-4 text-pink-accent bg-gray-100 border-gray-300 rounded focus:ring-pink-accent focus:ring-2"
                   />
@@ -3827,9 +3769,9 @@ const AdminDashboard = () => {
                 </div>
 
                 <div className="flex items-center">
-                  <input 
+                  <input
                     {...register('is_active')}
-                    type="checkbox" 
+                    type="checkbox"
                     id="is_active"
                     defaultChecked={editingService?.is_active !== false}
                     className="w-4 h-4 text-pink-accent bg-gray-100 border-gray-300 rounded focus:ring-pink-accent focus:ring-2"
@@ -3841,20 +3783,20 @@ const AdminDashboard = () => {
                 </div>
               </div>
             </div>
-            
+
             <div className="flex gap-3 mt-6">
-              <button 
-                type="button" 
+              <button
+                type="button"
                 onClick={closeModal}
                 className="flex-1 bg-gray-200 text-gray-800 px-6 py-3 rounded-lg font-medium hover:bg-gray-300 transition"
               >
                 Cancel
               </button>
-              <button 
-                type="submit" 
+              <button
+                type="submit"
                 className="flex-1 bg-pink-accent text-white px-6 py-3 rounded-lg font-medium hover:bg-pink-accent/90 transition"
               >
-                {editingService 
+                {editingService
                   ? (editingService.is_addon ? 'Update Add-on' : 'Update Service')
                   : (isAddingAddon ? 'Add Add-on' : 'Add Service')
                 }
@@ -3866,7 +3808,7 @@ const AdminDashboard = () => {
           <div className="w-full max-w-6xl mx-auto">{/* Wider modal container */}
             <div className="flex items-center justify-between mb-6">
               <h2 className="text-3xl font-bold text-gray-800">Edit Booking</h2>
-              <button 
+              <button
                 onClick={closeModal}
                 className="text-gray-500 hover:text-gray-700 transition"
               >
@@ -3885,11 +3827,11 @@ const AdminDashboard = () => {
                   </div>
                   <div className="flex-1">
                     <h3 className="text-xl font-bold text-gray-800">{editingBooking.client_name}</h3>
-                    <p className="text-gray-600">{new Date(editingBooking.date).toLocaleDateString('en-US', { 
-                      weekday: 'long', 
-                      year: 'numeric', 
-                      month: 'long', 
-                      day: 'numeric' 
+                    <p className="text-gray-600">{new Date(editingBooking.date).toLocaleDateString('en-US', {
+                      weekday: 'long',
+                      year: 'numeric',
+                      month: 'long',
+                      day: 'numeric'
                     })}</p>
                   </div>
                 </div>
@@ -3926,8 +3868,8 @@ const AdminDashboard = () => {
                     </svg>
                     Service <span className="text-red-500">*</span>
                   </label>
-                  <select 
-                    {...register('service_id')} 
+                  <select
+                    {...register('service_id')}
                     className="block w-full p-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-baby-blue focus:border-baby-blue transition text-gray-900 bg-white"
                   >
                     <option value="">Select Service</option>
@@ -3946,9 +3888,9 @@ const AdminDashboard = () => {
                       </svg>
                       Date <span className="text-red-500">*</span>
                     </label>
-                    <input 
-                      {...register('date')} 
-                      type="date" 
+                    <input
+                      {...register('date')}
+                      type="date"
                       className="block w-full p-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-baby-blue focus:border-baby-blue transition"
                     />
                   </div>
@@ -3959,9 +3901,9 @@ const AdminDashboard = () => {
                       </svg>
                       Time <span className="text-red-500">*</span>
                     </label>
-                    <input 
-                      {...register('time')} 
-                      type="time" 
+                    <input
+                      {...register('time')}
+                      type="time"
                       className="block w-full p-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-baby-blue focus:border-baby-blue transition"
                     />
                   </div>
@@ -3975,14 +3917,14 @@ const AdminDashboard = () => {
                     </svg>
                     Client Information
                   </h3>
-                  
+
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
                       Client Name <span className="text-red-500">*</span>
                     </label>
-                    <input 
-                      {...register('client_name')} 
-                      placeholder="Enter client name" 
+                    <input
+                      {...register('client_name')}
+                      placeholder="Enter client name"
                       className="block w-full p-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-baby-blue focus:border-baby-blue transition"
                     />
                   </div>
@@ -3992,10 +3934,10 @@ const AdminDashboard = () => {
                       <label className="block text-sm font-medium text-gray-700 mb-2">
                         Email Address <span className="text-red-500">*</span>
                       </label>
-                      <input 
-                        {...register('client_email')} 
-                        type="email" 
-                        placeholder="Enter email address" 
+                      <input
+                        {...register('client_email')}
+                        type="email"
+                        placeholder="Enter email address"
                         className="block w-full p-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-baby-blue focus:border-baby-blue transition"
                       />
                     </div>
@@ -4003,9 +3945,9 @@ const AdminDashboard = () => {
                       <label className="block text-sm font-medium text-gray-700 mb-2">
                         Phone Number
                       </label>
-                      <input 
-                        {...register('client_phone')} 
-                        placeholder="Enter phone number" 
+                      <input
+                        {...register('client_phone')}
+                        placeholder="Enter phone number"
                         className="block w-full p-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-baby-blue focus:border-baby-blue transition"
                       />
                     </div>
@@ -4015,8 +3957,8 @@ const AdminDashboard = () => {
                     <label className="block text-sm font-medium text-gray-700 mb-2">
                       Language Preference
                     </label>
-                    <select 
-                      {...register('language')} 
+                    <select
+                      {...register('language')}
                       className="block w-full p-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-baby-blue focus:border-baby-blue transition text-gray-900 bg-white"
                     >
                       <option value="en">English</option>
@@ -4047,7 +3989,7 @@ const AdminDashboard = () => {
                                 ₪{Number(addon.price || 0).toFixed(2)} • {formatDuration(addon.duration)}
                               </p>
                             </div>
-                            <button 
+                            <button
                               type="button"
                               onClick={() => removeBookingAddOn(addon.id)}
                               className="text-red-500 hover:text-red-700 transition p-1"
@@ -4069,7 +4011,7 @@ const AdminDashboard = () => {
                       <p className="text-sm font-medium text-gray-700">Available Add-ons:</p>
                       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
                         {addOns.filter(addon => !selectedBookingAddOns.find(selected => selected.id === addon.id)).map((addon) => (
-                          <button 
+                          <button
                             key={addon.id}
                             type="button"
                             onClick={() => addBookingAddOn(addon)}
@@ -4131,15 +4073,15 @@ const AdminDashboard = () => {
 
               {/* Action Buttons */}
               <div className="flex flex-col sm:flex-row gap-3">
-                <button 
+                <button
                   type="button"
                   onClick={closeModal}
                   className="flex-1 bg-gray-200 text-gray-800 px-6 py-3 rounded-xl font-medium hover:bg-gray-300 transition"
                 >
                   Cancel
                 </button>
-                <button 
-                  type="submit" 
+                <button
+                  type="submit"
                   className="flex-1 bg-baby-blue text-white px-6 py-3 rounded-xl font-medium hover:bg-baby-blue/80 transition flex items-center justify-center gap-2"
                 >
                   <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -4422,21 +4364,21 @@ const AdminDashboard = () => {
                               setError('Phone number is required');
                               return;
                             }
-                            
+
                             const oldPhone = selectedClient.phone;
                             const newPhone = editingClientForm.phone.trim();
-                            
+
                             await api.put(`/api/clients/${encodeURIComponent(oldPhone)}`, {
                               name: editingClientForm.name,
                               email: editingClientForm.email,
                               newPhone: newPhone
                             });
-                            
+
                             // Refresh client data using the new phone number
                             const updatedClient = await api.get(`/api/clients/${encodeURIComponent(newPhone)}`);
                             setSelectedClient(updatedClient);
                             setIsEditingClient(false);
-                            
+
                             // Refresh clients list
                             const clientsData = await api.get('/api/clients');
                             setClients(clientsData);
@@ -4518,7 +4460,7 @@ const AdminDashboard = () => {
                         const isCancelled = booking.status === 'cancelled';
                         const appointmentDateTime = new Date(`${booking.date}T${booking.time}`);
                         const cancelledAt = booking.cancelled_at ? new Date(booking.cancelled_at) : null;
-                        const hoursBeforeAppointment = cancelledAt 
+                        const hoursBeforeAppointment = cancelledAt
                           ? Math.round((appointmentDateTime.getTime() - cancelledAt.getTime()) / (1000 * 60 * 60) * 10) / 10
                           : null;
 
@@ -4599,7 +4541,7 @@ const AdminDashboard = () => {
                       const bookingDate = new Date(selectedBooking.date);
                       const formattedDate = bookingDate.toISOString().split('T')[0];
                       const timeWithoutSeconds = selectedBooking.time.split(':').slice(0, 2).join(':');
-                      
+
                       // Initialize quantities for individual nail add-ons
                       // Count occurrences of each addon ID (for individual nails with quantity > 1)
                       const addonIdCounts: Record<string, number> = {};
@@ -4613,7 +4555,7 @@ const AdminDashboard = () => {
                           addonIdCounts[addon.id]++;
                         }
                       });
-                      
+
                       const initialQuantities: Record<string, number> = {};
                       uniqueAddonIds.forEach(addonId => {
                         const addon = addOns.find(a => a.id === addonId);
@@ -4621,7 +4563,7 @@ const AdminDashboard = () => {
                           initialQuantities[addonId] = addonIdCounts[addonId] || 1;
                         }
                       });
-                      
+
                       setEditingBookingForm({
                         service_id: selectedBooking.service_id || '',
                         date: formattedDate,
@@ -4645,7 +4587,7 @@ const AdminDashboard = () => {
                     Edit
                   </button>
                 ) : null}
-                <button 
+                <button
                   onClick={() => {
                     setShowBookingDetailsModal(false);
                     setIsEditingBookingDetails(false);
@@ -4667,7 +4609,7 @@ const AdminDashboard = () => {
                 </div>
                 <div className="flex-1">
                   {selectedBooking.client_phone ? (
-                    <h3 
+                    <h3
                       onClick={async () => {
                         try {
                           setShowBookingDetailsModal(false);
@@ -4696,11 +4638,11 @@ const AdminDashboard = () => {
                   ) : (
                     <h3 className="text-xl sm:text-2xl font-bold text-gray-800 mb-1">{selectedBooking.client_name}</h3>
                   )}
-                  <p className="text-gray-600 text-sm sm:text-base">{new Date(selectedBooking.date).toLocaleDateString('en-US', { 
-                    weekday: 'long', 
-                    year: 'numeric', 
-                    month: 'long', 
-                    day: 'numeric' 
+                  <p className="text-gray-600 text-sm sm:text-base">{new Date(selectedBooking.date).toLocaleDateString('en-US', {
+                    weekday: 'long',
+                    year: 'numeric',
+                    month: 'long',
+                    day: 'numeric'
                   })}</p>
                   {selectedBooking.booking_reference && (
                     <p className="text-xs sm:text-sm text-gray-500 mt-1 font-mono">Ref: {selectedBooking.booking_reference}</p>
@@ -4709,609 +4651,609 @@ const AdminDashboard = () => {
               </div>
             </div>
 
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6 mb-6">
-                {/* Client Information */}
-                <div className="bg-white/80 rounded-xl p-4 sm:p-5 border border-gray-200/50 shadow-sm">
-                  <h4 className="font-bold text-gray-800 mb-4 flex items-center gap-2 text-base sm:text-lg">
-                    <svg className="w-5 h-5 text-baby-blue flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-                    </svg>
-                    Client Information
-                  </h4>
-                  <div className="space-y-3 text-sm sm:text-base">
-                    <div className="pb-2 border-b border-gray-100">
-                      <p className="text-gray-500 font-medium text-xs sm:text-sm mb-1">Name</p>
-                      {selectedBooking.client_phone ? (
-                        <p 
-                          onClick={async () => {
-                            try {
-                              setShowBookingDetailsModal(false);
-                              setSelectedClient({
-                                phone: selectedBooking.client_phone,
-                                name: selectedBooking.client_name,
-                                email: selectedBooking.client_email,
-                                totalBookings: 0,
-                                totalSpent: 0,
-                                averageBookingValue: 0,
-                                bookings: []
-                              } as Client);
-                              setShowClientDetailsModal(true);
-                              const clientData = await api.get(`/api/clients/${encodeURIComponent(selectedBooking.client_phone)}`);
-                              setSelectedClient(clientData);
-                            } catch (err: any) {
-                              if (import.meta.env.DEV) console.error('Error fetching client details:', err);
-                              setError(err.message || 'Failed to load client details');
-                              setShowClientDetailsModal(false);
-                            }
-                          }}
-                          className="text-gray-800 font-medium cursor-pointer hover:text-pink-accent transition hover:underline"
-                        >
-                          {selectedBooking.client_name}
-                        </p>
-                      ) : (
-                        <p className="text-gray-800 font-medium">{selectedBooking.client_name}</p>
-                      )}
-                    </div>
-                    <div className="pb-2 border-b border-gray-100">
-                      <p className="text-gray-500 font-medium text-xs sm:text-sm mb-1">Email</p>
-                      <p className="text-gray-800 break-all">{selectedBooking.client_email}</p>
-                    </div>
-                    <div className="pb-2 border-b border-gray-100">
-                      <p className="text-gray-500 font-medium text-xs sm:text-sm mb-1">Phone</p>
-                      <p className="text-gray-800">{selectedBooking.client_phone || 'Not provided'}</p>
-                    </div>
-                    <div>
-                      <p className="text-gray-500 font-medium text-xs sm:text-sm mb-1">Language</p>
-                      <p className="text-gray-800">{selectedBooking.language === 'en' ? 'English' : selectedBooking.language === 'he' ? 'Hebrew' : selectedBooking.language || 'Not specified'}</p>
-                    </div>
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6 mb-6">
+              {/* Client Information */}
+              <div className="bg-white/80 rounded-xl p-4 sm:p-5 border border-gray-200/50 shadow-sm">
+                <h4 className="font-bold text-gray-800 mb-4 flex items-center gap-2 text-base sm:text-lg">
+                  <svg className="w-5 h-5 text-baby-blue flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                  </svg>
+                  Client Information
+                </h4>
+                <div className="space-y-3 text-sm sm:text-base">
+                  <div className="pb-2 border-b border-gray-100">
+                    <p className="text-gray-500 font-medium text-xs sm:text-sm mb-1">Name</p>
+                    {selectedBooking.client_phone ? (
+                      <p
+                        onClick={async () => {
+                          try {
+                            setShowBookingDetailsModal(false);
+                            setSelectedClient({
+                              phone: selectedBooking.client_phone,
+                              name: selectedBooking.client_name,
+                              email: selectedBooking.client_email,
+                              totalBookings: 0,
+                              totalSpent: 0,
+                              averageBookingValue: 0,
+                              bookings: []
+                            } as Client);
+                            setShowClientDetailsModal(true);
+                            const clientData = await api.get(`/api/clients/${encodeURIComponent(selectedBooking.client_phone)}`);
+                            setSelectedClient(clientData);
+                          } catch (err: any) {
+                            if (import.meta.env.DEV) console.error('Error fetching client details:', err);
+                            setError(err.message || 'Failed to load client details');
+                            setShowClientDetailsModal(false);
+                          }
+                        }}
+                        className="text-gray-800 font-medium cursor-pointer hover:text-pink-accent transition hover:underline"
+                      >
+                        {selectedBooking.client_name}
+                      </p>
+                    ) : (
+                      <p className="text-gray-800 font-medium">{selectedBooking.client_name}</p>
+                    )}
                   </div>
-                </div>
-
-                {/* Service Information */}
-                <div className="bg-white/80 rounded-xl p-4 sm:p-5 border border-gray-200/50 shadow-sm">
-                  <h4 className="font-bold text-gray-800 mb-4 flex items-center gap-2 text-base sm:text-lg">
-                    <svg className="w-5 h-5 text-pink-accent flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 9.586V5L8 4z" />
-                    </svg>
-                    Service Details
-                  </h4>
-                  {isEditingBookingDetails ? (
-                    <div className="space-y-4">
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">Service *</label>
-                        <select
-                          value={editingBookingForm.service_id}
-                          onChange={(e) => {
-                            const selectedService = mainServices.find(s => s.id === e.target.value);
-                            setEditingBookingForm({
-                              ...editingBookingForm,
-                              service_id: e.target.value,
-                              price: selectedService ? String(selectedService.price) : editingBookingForm.price
-                            });
-                          }}
-                          className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-accent focus:border-transparent"
-                        >
-                          <option value="">Select a service</option>
-                          {mainServices.map((service) => (
-                            <option key={service.id} value={service.id}>
-                              {service.name} - {formatPrice(service.price)}
-                            </option>
-                          ))}
-                        </select>
-                      </div>
-                      <div className="grid grid-cols-2 gap-4">
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-2">Date *</label>
-                          <input
-                            type="date"
-                            value={editingBookingForm.date}
-                            onChange={(e) => setEditingBookingForm({ ...editingBookingForm, date: e.target.value })}
-                            min={format(new Date(), 'yyyy-MM-dd')}
-                            className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-accent focus:border-transparent"
-                          />
-                        </div>
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-2">Time *</label>
-                          <input
-                            type="time"
-                            value={editingBookingForm.time}
-                            onChange={(e) => setEditingBookingForm({ ...editingBookingForm, time: e.target.value })}
-                            className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-accent focus:border-transparent"
-                          />
-                        </div>
-                      </div>
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">Base Price (₪) *</label>
-                        <input
-                          type="number"
-                          step="0.01"
-                          value={editingBookingForm.price}
-                          onChange={(e) => setEditingBookingForm({ ...editingBookingForm, price: e.target.value })}
-                          className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-accent focus:border-transparent"
-                          placeholder="e.g. 120.00"
-                        />
-                      </div>
-                      {editingBookingForm.service_id && (() => {
-                        const selectedService = mainServices.find(s => s.id === editingBookingForm.service_id);
-                        return selectedService ? (
-                          <div className="text-sm text-gray-600">
-                            <p>Duration: {formatDuration(selectedService.duration)}</p>
-                          </div>
-                        ) : null;
-                      })()}
-                    </div>
-                  ) : (
-                    <div className="space-y-3 text-sm sm:text-base">
-                      <div className="pb-2 border-b border-gray-100">
-                        <p className="text-gray-500 font-medium text-xs sm:text-sm mb-1">Service</p>
-                        <p className="text-gray-800 font-medium">{selectedBooking.service_name || selectedBooking.service_id}</p>
-                      </div>
-                      <div className="pb-2 border-b border-gray-100">
-                        <p className="text-gray-500 font-medium text-xs sm:text-sm mb-1">Duration</p>
-                        <p className="text-gray-800">{selectedBooking.service_duration ? formatDuration(selectedBooking.service_duration) : 'Not specified'}</p>
-                      </div>
-                      <div className="pb-2 border-b border-gray-100">
-                        <p className="text-gray-500 font-medium text-xs sm:text-sm mb-1">Base Price</p>
-                        <p className="text-pink-accent font-bold text-lg sm:text-xl">{formatCurrency(getNumericPrice(selectedBooking.price))}</p>
-                      </div>
-                      <div>
-                        <p className="text-gray-500 font-medium text-xs sm:text-sm mb-1">Date & Time</p>
-                        <p className="text-gray-800">{selectedBooking.time} • {new Date(selectedBooking.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</p>
-                      </div>
-                    </div>
-                  )}
+                  <div className="pb-2 border-b border-gray-100">
+                    <p className="text-gray-500 font-medium text-xs sm:text-sm mb-1">Email</p>
+                    <p className="text-gray-800 break-all">{selectedBooking.client_email}</p>
+                  </div>
+                  <div className="pb-2 border-b border-gray-100">
+                    <p className="text-gray-500 font-medium text-xs sm:text-sm mb-1">Phone</p>
+                    <p className="text-gray-800">{selectedBooking.client_phone || 'Not provided'}</p>
+                  </div>
+                  <div>
+                    <p className="text-gray-500 font-medium text-xs sm:text-sm mb-1">Language</p>
+                    <p className="text-gray-800">{selectedBooking.language === 'en' ? 'English' : selectedBooking.language === 'he' ? 'Hebrew' : selectedBooking.language || 'Not specified'}</p>
+                  </div>
                 </div>
               </div>
 
-              {/* Add-ons Section */}
-              <div className="bg-white/80 rounded-xl p-4 sm:p-6 mb-6 border border-purple-200/50 shadow-sm">
+              {/* Service Information */}
+              <div className="bg-white/80 rounded-xl p-4 sm:p-5 border border-gray-200/50 shadow-sm">
                 <h4 className="font-bold text-gray-800 mb-4 flex items-center gap-2 text-base sm:text-lg">
-                  <svg className="w-5 h-5 text-purple-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                  <svg className="w-5 h-5 text-pink-accent flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 9.586V5L8 4z" />
                   </svg>
-                  Add-ons ({isEditingBookingDetails ? editingBookingForm.addon_ids.length : (selectedBooking.addons?.length || 0)})
+                  Service Details
                 </h4>
                 {isEditingBookingDetails ? (
                   <div className="space-y-4">
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">Select Add-ons</label>
-                      <div className="space-y-2 max-h-60 overflow-y-auto">
-                        {addOns.map((addon) => {
-                          const isSelected = editingBookingForm.addon_ids.includes(addon.id);
-                          const isCustom = addon.name?.toLowerCase().includes('custom');
-                          const isIndividualNail = addon.name?.toLowerCase().includes('individual nail');
-                          const quantity = editingBookingForm.addonQuantities[addon.id] || (isSelected ? 1 : 0);
-                          
-                          return (
-                            <div key={addon.id} className="flex items-center gap-3 p-3 border border-gray-200 rounded-lg hover:bg-gray-50">
-                              <input
-                                type="checkbox"
-                                checked={isSelected}
-                                onChange={(e) => {
-                                  if (e.target.checked) {
-                                    setEditingBookingForm({
-                                      ...editingBookingForm,
-                                      addon_ids: [...editingBookingForm.addon_ids, addon.id],
-                                      customAddonPrices: isCustom ? {
-                                        ...editingBookingForm.customAddonPrices,
-                                        [addon.id]: String(addon.price || '')
-                                      } : editingBookingForm.customAddonPrices,
-                                      addonQuantities: isIndividualNail ? {
-                                        ...editingBookingForm.addonQuantities,
-                                        [addon.id]: 1
-                                      } : editingBookingForm.addonQuantities
-                                    });
-                                  } else {
-                                    setEditingBookingForm({
-                                      ...editingBookingForm,
-                                      addon_ids: editingBookingForm.addon_ids.filter(id => id !== addon.id),
-                                      customAddonPrices: isCustom ? (() => {
-                                        const newPrices = { ...editingBookingForm.customAddonPrices };
-                                        delete newPrices[addon.id];
-                                        return newPrices;
-                                      })() : editingBookingForm.customAddonPrices,
-                                      addonQuantities: isIndividualNail ? (() => {
-                                        const newQuantities = { ...editingBookingForm.addonQuantities };
-                                        delete newQuantities[addon.id];
-                                        return newQuantities;
-                                      })() : editingBookingForm.addonQuantities
-                                    });
-                                  }
-                                }}
-                                className="w-4 h-4 text-purple-600 border-gray-300 rounded focus:ring-purple-500"
-                              />
-                              <div className="flex-1">
-                                <label className="font-medium text-gray-800 cursor-pointer">{addon.name}</label>
-                                {addon.duration > 0 && (
-                                  <p className="text-xs text-gray-600">{formatDuration(addon.duration)}</p>
-                                )}
-                              </div>
-                              {isSelected && isIndividualNail ? (
-                                <div className="flex items-center gap-2">
-                                  <span className="text-sm text-gray-600">Quantity:</span>
-                                  <input
-                                    type="number"
-                                    min="1"
-                                    max="20"
-                                    value={quantity}
-                                    onChange={(e) => {
-                                      const qty = Math.max(1, Math.min(20, parseInt(e.target.value) || 1));
-                                      setEditingBookingForm({
-                                        ...editingBookingForm,
-                                        addonQuantities: {
-                                          ...editingBookingForm.addonQuantities,
-                                          [addon.id]: qty
-                                        }
-                                      });
-                                    }}
-                                    className="w-20 p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent text-sm"
-                                    placeholder="Qty"
-                                  />
-                                  <span className="text-sm text-gray-600">× {formatPrice(addon.price)} = {formatPrice(getNumericPrice(addon.price) * quantity)}</span>
-                                </div>
-                              ) : isSelected && isCustom ? (
-                                <div className="flex items-center gap-2">
-                                  <span className="text-sm text-gray-600">Price:</span>
-                                  <input
-                                    type="number"
-                                    step="0.01"
-                                    value={editingBookingForm.customAddonPrices[addon.id] || ''}
-                                    onChange={(e) => setEditingBookingForm({
-                                      ...editingBookingForm,
-                                      customAddonPrices: {
-                                        ...editingBookingForm.customAddonPrices,
-                                        [addon.id]: e.target.value
-                                      }
-                                    })}
-                                    className="w-24 p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent text-sm"
-                                    placeholder="Price"
-                                  />
-                                  <span className="text-sm text-gray-600">₪</span>
-                                </div>
-                              ) : (
-                                <div className="text-right">
-                                  <p className="font-semibold text-purple-600">{formatPrice(addon.price)}</p>
-                                </div>
-                              )}
-                            </div>
-                          );
-                        })}
+                      <label className="block text-sm font-medium text-gray-700 mb-2">Service *</label>
+                      <select
+                        value={editingBookingForm.service_id}
+                        onChange={(e) => {
+                          const selectedService = mainServices.find(s => s.id === e.target.value);
+                          setEditingBookingForm({
+                            ...editingBookingForm,
+                            service_id: e.target.value,
+                            price: selectedService ? String(selectedService.price) : editingBookingForm.price
+                          });
+                        }}
+                        className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-accent focus:border-transparent"
+                      >
+                        <option value="">Select a service</option>
+                        {mainServices.map((service) => (
+                          <option key={service.id} value={service.id}>
+                            {service.name} - {formatPrice(service.price)}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">Date *</label>
+                        <input
+                          type="date"
+                          value={editingBookingForm.date}
+                          onChange={(e) => setEditingBookingForm({ ...editingBookingForm, date: e.target.value })}
+                          min={format(new Date(), 'yyyy-MM-dd')}
+                          className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-accent focus:border-transparent"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">Time *</label>
+                        <input
+                          type="time"
+                          value={editingBookingForm.time}
+                          onChange={(e) => setEditingBookingForm({ ...editingBookingForm, time: e.target.value })}
+                          className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-accent focus:border-transparent"
+                        />
                       </div>
                     </div>
-                    {editingBookingForm.addon_ids.length > 0 && (
-                      <div className="border-t-2 border-gray-300 pt-4">
-                        <div className="flex justify-between items-center">
-                          <p className="font-bold text-gray-800 text-base">Total Add-ons:</p>
-                          <p className="font-bold text-purple-600 text-lg">
-                            {formatCurrency(editingBookingForm.addon_ids.reduce((sum, addonId) => {
-                              const addon = addOns.find(a => a.id === addonId);
-                              if (!addon) return sum;
-                              const isIndividualNail = addon.name?.toLowerCase().includes('individual nail');
-                              const quantity = editingBookingForm.addonQuantities[addonId] || 1;
-                              
-                              if (addon.name?.toLowerCase().includes('custom')) {
-                                return sum + getNumericPrice(editingBookingForm.customAddonPrices[addonId] || '0');
-                              }
-                              if (isIndividualNail) {
-                                return sum + (getNumericPrice(addon.price) * quantity);
-                              }
-                              return sum + getNumericPrice(addon.price);
-                            }, 0))}
-                          </p>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">Base Price (₪) *</label>
+                      <input
+                        type="number"
+                        step="0.01"
+                        value={editingBookingForm.price}
+                        onChange={(e) => setEditingBookingForm({ ...editingBookingForm, price: e.target.value })}
+                        className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-accent focus:border-transparent"
+                        placeholder="e.g. 120.00"
+                      />
+                    </div>
+                    {editingBookingForm.service_id && (() => {
+                      const selectedService = mainServices.find(s => s.id === editingBookingForm.service_id);
+                      return selectedService ? (
+                        <div className="text-sm text-gray-600">
+                          <p>Duration: {formatDuration(selectedService.duration)}</p>
                         </div>
-                      </div>
-                    )}
+                      ) : null;
+                    })()}
                   </div>
-                ) : selectedBooking.addons && selectedBooking.addons.length > 0 ? (
-                  <div className="space-y-3">
-                    {selectedBooking.addons.map((addon: any, index: number) => {
-                      const addonPrice = addon.price !== undefined && addon.price !== null ? addon.price : 0;
-                      return (
-                        <div key={index} className="flex justify-between items-start sm:items-center bg-white/80 rounded-lg p-3 sm:p-4 border border-gray-200/50 hover:border-purple-300 transition-colors">
-                          <div className="flex-1">
-                            <p className="font-semibold text-gray-800 text-base">{addon.name}</p>
-                            {addon.duration && addon.duration > 0 && (
-                              <p className="text-sm text-gray-600 mt-1">{addon.duration} minutes</p>
-                            )}
-                            {addon.name?.toLowerCase().includes('custom') && selectedBooking.custom_request && (
-                              <p className="text-xs text-gray-500 mt-1 italic">Custom request included</p>
+                ) : (
+                  <div className="space-y-3 text-sm sm:text-base">
+                    <div className="pb-2 border-b border-gray-100">
+                      <p className="text-gray-500 font-medium text-xs sm:text-sm mb-1">Service</p>
+                      <p className="text-gray-800 font-medium">{selectedBooking.service_name || selectedBooking.service_id}</p>
+                    </div>
+                    <div className="pb-2 border-b border-gray-100">
+                      <p className="text-gray-500 font-medium text-xs sm:text-sm mb-1">Duration</p>
+                      <p className="text-gray-800">{selectedBooking.service_duration ? formatDuration(selectedBooking.service_duration) : 'Not specified'}</p>
+                    </div>
+                    <div className="pb-2 border-b border-gray-100">
+                      <p className="text-gray-500 font-medium text-xs sm:text-sm mb-1">Base Price</p>
+                      <p className="text-pink-accent font-bold text-lg sm:text-xl">{formatCurrency(getNumericPrice(selectedBooking.price))}</p>
+                    </div>
+                    <div>
+                      <p className="text-gray-500 font-medium text-xs sm:text-sm mb-1">Date & Time</p>
+                      <p className="text-gray-800">{selectedBooking.time} • {new Date(selectedBooking.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</p>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Add-ons Section */}
+            <div className="bg-white/80 rounded-xl p-4 sm:p-6 mb-6 border border-purple-200/50 shadow-sm">
+              <h4 className="font-bold text-gray-800 mb-4 flex items-center gap-2 text-base sm:text-lg">
+                <svg className="w-5 h-5 text-purple-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                </svg>
+                Add-ons ({isEditingBookingDetails ? editingBookingForm.addon_ids.length : (selectedBooking.addons?.length || 0)})
+              </h4>
+              {isEditingBookingDetails ? (
+                <div className="space-y-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Select Add-ons</label>
+                    <div className="space-y-2 max-h-60 overflow-y-auto">
+                      {addOns.map((addon) => {
+                        const isSelected = editingBookingForm.addon_ids.includes(addon.id);
+                        const isCustom = addon.name?.toLowerCase().includes('custom');
+                        const isIndividualNail = addon.name?.toLowerCase().includes('individual nail');
+                        const quantity = editingBookingForm.addonQuantities[addon.id] || (isSelected ? 1 : 0);
+
+                        return (
+                          <div key={addon.id} className="flex items-center gap-3 p-3 border border-gray-200 rounded-lg hover:bg-gray-50">
+                            <input
+                              type="checkbox"
+                              checked={isSelected}
+                              onChange={(e) => {
+                                if (e.target.checked) {
+                                  setEditingBookingForm({
+                                    ...editingBookingForm,
+                                    addon_ids: [...editingBookingForm.addon_ids, addon.id],
+                                    customAddonPrices: isCustom ? {
+                                      ...editingBookingForm.customAddonPrices,
+                                      [addon.id]: String(addon.price || '')
+                                    } : editingBookingForm.customAddonPrices,
+                                    addonQuantities: isIndividualNail ? {
+                                      ...editingBookingForm.addonQuantities,
+                                      [addon.id]: 1
+                                    } : editingBookingForm.addonQuantities
+                                  });
+                                } else {
+                                  setEditingBookingForm({
+                                    ...editingBookingForm,
+                                    addon_ids: editingBookingForm.addon_ids.filter(id => id !== addon.id),
+                                    customAddonPrices: isCustom ? (() => {
+                                      const newPrices = { ...editingBookingForm.customAddonPrices };
+                                      delete newPrices[addon.id];
+                                      return newPrices;
+                                    })() : editingBookingForm.customAddonPrices,
+                                    addonQuantities: isIndividualNail ? (() => {
+                                      const newQuantities = { ...editingBookingForm.addonQuantities };
+                                      delete newQuantities[addon.id];
+                                      return newQuantities;
+                                    })() : editingBookingForm.addonQuantities
+                                  });
+                                }
+                              }}
+                              className="w-4 h-4 text-purple-600 border-gray-300 rounded focus:ring-purple-500"
+                            />
+                            <div className="flex-1">
+                              <label className="font-medium text-gray-800 cursor-pointer">{addon.name}</label>
+                              {addon.duration > 0 && (
+                                <p className="text-xs text-gray-600">{formatDuration(addon.duration)}</p>
+                              )}
+                            </div>
+                            {isSelected && isIndividualNail ? (
+                              <div className="flex items-center gap-2">
+                                <span className="text-sm text-gray-600">Quantity:</span>
+                                <input
+                                  type="number"
+                                  min="1"
+                                  max="20"
+                                  value={quantity}
+                                  onChange={(e) => {
+                                    const qty = Math.max(1, Math.min(20, parseInt(e.target.value) || 1));
+                                    setEditingBookingForm({
+                                      ...editingBookingForm,
+                                      addonQuantities: {
+                                        ...editingBookingForm.addonQuantities,
+                                        [addon.id]: qty
+                                      }
+                                    });
+                                  }}
+                                  className="w-20 p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent text-sm"
+                                  placeholder="Qty"
+                                />
+                                <span className="text-sm text-gray-600">× {formatPrice(addon.price)} = {formatPrice(getNumericPrice(addon.price) * quantity)}</span>
+                              </div>
+                            ) : isSelected && isCustom ? (
+                              <div className="flex items-center gap-2">
+                                <span className="text-sm text-gray-600">Price:</span>
+                                <input
+                                  type="number"
+                                  step="0.01"
+                                  value={editingBookingForm.customAddonPrices[addon.id] || ''}
+                                  onChange={(e) => setEditingBookingForm({
+                                    ...editingBookingForm,
+                                    customAddonPrices: {
+                                      ...editingBookingForm.customAddonPrices,
+                                      [addon.id]: e.target.value
+                                    }
+                                  })}
+                                  className="w-24 p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent text-sm"
+                                  placeholder="Price"
+                                />
+                                <span className="text-sm text-gray-600">₪</span>
+                              </div>
+                            ) : (
+                              <div className="text-right">
+                                <p className="font-semibold text-purple-600">{formatPrice(addon.price)}</p>
+                              </div>
                             )}
                           </div>
-                          <div className="ml-4 text-right">
-                            <p className="font-bold text-purple-600 text-lg">{formatPrice(addonPrice)}</p>
-                          </div>
-                        </div>
-                      );
-                    })}
-                    <div className="border-t-2 border-gray-300 pt-4 mt-4">
+                        );
+                      })}
+                    </div>
+                  </div>
+                  {editingBookingForm.addon_ids.length > 0 && (
+                    <div className="border-t-2 border-gray-300 pt-4">
                       <div className="flex justify-between items-center">
                         <p className="font-bold text-gray-800 text-base">Total Add-ons:</p>
                         <p className="font-bold text-purple-600 text-lg">
-                          {formatCurrency(selectedBooking.addons.reduce((sum: number, addon: any) => sum + getNumericPrice(addon.price), 0))}
+                          {formatCurrency(editingBookingForm.addon_ids.reduce((sum, addonId) => {
+                            const addon = addOns.find(a => a.id === addonId);
+                            if (!addon) return sum;
+                            const isIndividualNail = addon.name?.toLowerCase().includes('individual nail');
+                            const quantity = editingBookingForm.addonQuantities[addonId] || 1;
+
+                            if (addon.name?.toLowerCase().includes('custom')) {
+                              return sum + getNumericPrice(editingBookingForm.customAddonPrices[addonId] || '0');
+                            }
+                            if (isIndividualNail) {
+                              return sum + (getNumericPrice(addon.price) * quantity);
+                            }
+                            return sum + getNumericPrice(addon.price);
+                          }, 0))}
                         </p>
                       </div>
                     </div>
-                  </div>
-                ) : (
-                  <p className="text-gray-500 text-center py-4">No add-ons selected</p>
-                )}
-              </div>
-
-              {/* Custom Request Section */}
-              {(selectedBooking.custom_request || selectedBooking.custom_image) && (
-                <div className="bg-gradient-to-br from-yellow-50 to-amber-50 border-2 border-yellow-300 rounded-xl p-4 sm:p-6 mb-6 shadow-sm">
-                  <h4 className="font-bold text-gray-800 mb-4 flex items-center gap-2 text-base sm:text-lg">
-                    <svg className="w-5 h-5 text-yellow-600 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                    </svg>
-                    Custom Request (Admin Only)
-                  </h4>
-                  <div className="space-y-4">
-                    {selectedBooking.custom_request && (
-                      <div className="bg-white rounded-lg p-4 border border-yellow-200 shadow-sm">
-                        <p className="text-xs sm:text-sm font-semibold text-gray-600 mb-2 uppercase tracking-wide">Request Details:</p>
-                        <p className="text-gray-800 whitespace-pre-wrap text-sm sm:text-base leading-relaxed">
-                          {selectedBooking.custom_request}
-                        </p>
-                      </div>
-                    )}
-                    {selectedBooking.custom_image && (
-                      <div className="bg-white rounded-lg p-4 border border-yellow-200 shadow-sm">
-                        <p className="text-xs sm:text-sm font-semibold text-gray-600 mb-3 uppercase tracking-wide">Attached Image:</p>
-                        <div className="flex justify-center">
-                          <img 
-                            src={selectedBooking.custom_image} 
-                            alt="Custom request reference" 
-                            className="max-w-full max-h-96 rounded-lg border-2 border-yellow-200 bg-white p-2 shadow-md object-contain"
-                          />
+                  )}
+                </div>
+              ) : selectedBooking.addons && selectedBooking.addons.length > 0 ? (
+                <div className="space-y-3">
+                  {selectedBooking.addons.map((addon: any, index: number) => {
+                    const addonPrice = addon.price !== undefined && addon.price !== null ? addon.price : 0;
+                    return (
+                      <div key={index} className="flex justify-between items-start sm:items-center bg-white/80 rounded-lg p-3 sm:p-4 border border-gray-200/50 hover:border-purple-300 transition-colors">
+                        <div className="flex-1">
+                          <p className="font-semibold text-gray-800 text-base">{addon.name}</p>
+                          {addon.duration && addon.duration > 0 && (
+                            <p className="text-sm text-gray-600 mt-1">{addon.duration} minutes</p>
+                          )}
+                          {addon.name?.toLowerCase().includes('custom') && selectedBooking.custom_request && (
+                            <p className="text-xs text-gray-500 mt-1 italic">Custom request included</p>
+                          )}
+                        </div>
+                        <div className="ml-4 text-right">
+                          <p className="font-bold text-purple-600 text-lg">{formatPrice(addonPrice)}</p>
                         </div>
                       </div>
-                    )}
-                  </div>
-                </div>
-              )}
-
-              {/* Pricing Summary */}
-              <div className="bg-gradient-to-br from-green-50 to-white rounded-xl p-4 sm:p-6 mb-6 border border-green-200/50 shadow-sm">
-                <h4 className="font-bold text-gray-800 mb-4 flex items-center gap-2 text-base sm:text-lg">
-                  <svg className="w-5 h-5 text-green-600 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1" />
-                  </svg>
-                  Pricing Summary
-                </h4>
-                <div className="space-y-3 text-sm sm:text-base">
-                  <div className="flex justify-between">
-                    <span className="text-gray-600">Service Price:</span>
-                    <span className="text-gray-800 font-medium">
-                      {isEditingBookingDetails 
-                        ? formatCurrency(getNumericPrice(editingBookingForm.price || '0'))
-                        : formatCurrency(getNumericPrice(selectedBooking.price))
-                      }
-                    </span>
-                  </div>
-                  {(isEditingBookingDetails ? editingBookingForm.addon_ids.length > 0 : (selectedBooking.addons && selectedBooking.addons.length > 0)) && (
-                    <div className="flex justify-between">
-                      <span className="text-gray-600">Add-ons:</span>
-                      <span className="text-gray-800 font-medium">
-                        {isEditingBookingDetails
-                          ? formatCurrency(editingBookingForm.addon_ids.reduce((sum, addonId) => {
-                              const addon = addOns.find(a => a.id === addonId);
-                              if (!addon) return sum;
-                              if (addon.name?.toLowerCase().includes('custom')) {
-                                return sum + getNumericPrice(editingBookingForm.customAddonPrices[addonId] || '0');
-                              }
-                              return sum + getNumericPrice(addon.price);
-                            }, 0))
-                          : formatCurrency(selectedBooking.addons.reduce((sum: number, addon: any) => sum + getNumericPrice(addon.price), 0))
-                        }
-                      </span>
-                    </div>
-                  )}
-                  <div className="border-t-2 border-gray-300 pt-3 mt-3">
+                    );
+                  })}
+                  <div className="border-t-2 border-gray-300 pt-4 mt-4">
                     <div className="flex justify-between items-center">
-                      <span className="font-bold text-gray-800 text-base">Total Amount:</span>
-                      <span className="font-bold text-pink-accent text-xl">
-                        {isEditingBookingDetails
-                          ? formatCurrency(
-                              getNumericPrice(editingBookingForm.price || '0') +
-                              editingBookingForm.addon_ids.reduce((sum, addonId) => {
-                                const addon = addOns.find(a => a.id === addonId);
-                                if (!addon) return sum;
-                                const isIndividualNail = addon.name?.toLowerCase().includes('individual nail');
-                                const quantity = editingBookingForm.addonQuantities[addonId] || 1;
-                                
-                                if (addon.name?.toLowerCase().includes('custom')) {
-                                  return sum + getNumericPrice(editingBookingForm.customAddonPrices[addonId] || '0');
-                                }
-                                if (isIndividualNail) {
-                                  return sum + (getNumericPrice(addon.price) * quantity);
-                                }
-                                return sum + getNumericPrice(addon.price);
-                              }, 0)
-                            )
-                          : formatCurrency(
-                              getNumericPrice(selectedBooking.price) + 
-                              (selectedBooking.addons?.reduce((sum: number, addon: any) => sum + getNumericPrice(addon.price), 0) || 0)
-                            )
-                        }
-                      </span>
+                      <p className="font-bold text-gray-800 text-base">Total Add-ons:</p>
+                      <p className="font-bold text-purple-600 text-lg">
+                        {formatCurrency(selectedBooking.addons.reduce((sum: number, addon: any) => sum + getNumericPrice(addon.price), 0))}
+                      </p>
                     </div>
                   </div>
                 </div>
-              </div>
+              ) : (
+                <p className="text-gray-500 text-center py-4">No add-ons selected</p>
+              )}
+            </div>
 
-              {/* Booking Metadata */}
-              <div className="bg-white/80 rounded-xl p-4 sm:p-5 border border-gray-200/50 shadow-sm">
+            {/* Custom Request Section */}
+            {(selectedBooking.custom_request || selectedBooking.custom_image) && (
+              <div className="bg-gradient-to-br from-yellow-50 to-amber-50 border-2 border-yellow-300 rounded-xl p-4 sm:p-6 mb-6 shadow-sm">
                 <h4 className="font-bold text-gray-800 mb-4 flex items-center gap-2 text-base sm:text-lg">
-                  <svg className="w-5 h-5 text-gray-600 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                  <svg className="w-5 h-5 text-yellow-600 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
                   </svg>
-                  Booking Information
+                  Custom Request (Admin Only)
                 </h4>
-                <div className="grid md:grid-cols-2 gap-4 text-sm sm:text-base">
-                  <div className="pb-3 border-b border-gray-100 md:border-b-0 md:border-r md:pr-4">
-                    <p className="text-gray-500 font-medium text-xs sm:text-sm mb-1">Booking Reference</p>
-                    <p className="text-gray-800 font-mono font-semibold text-base break-all">
-                      {selectedBooking.booking_reference || `ID: ${selectedBooking.id}`}
-                    </p>
-                  </div>
-                  <div className="pb-3 border-b border-gray-100 md:border-b-0 md:pl-4">
-                    <p className="text-gray-500 font-medium text-xs sm:text-sm mb-1">Status</p>
-                    <p className="text-gray-800">
-                      {new Date(selectedBooking.date) < new Date() ? 
-                        <span className="inline-block text-gray-700 bg-gray-100 px-3 py-1.5 rounded-lg text-xs sm:text-sm font-medium">Completed</span> : 
-                        <span className="inline-block text-green-700 bg-green-100 px-3 py-1.5 rounded-lg text-xs sm:text-sm font-medium">Upcoming</span>
-                      }
-                    </p>
-                  </div>
-                  <div className="pb-3 border-b border-gray-100 md:border-b-0 md:border-r md:pr-4">
-                    <p className="text-gray-500 font-medium text-xs sm:text-sm mb-1">Token</p>
-                    <p className="text-gray-800 font-mono break-all text-xs sm:text-sm">{selectedBooking.token}</p>
-                  </div>
-                  <div className="pb-3 border-b border-gray-100 md:border-b-0 md:pl-4">
-                    <p className="text-gray-500 font-medium text-xs sm:text-sm mb-1">Booking Created</p>
-                    <p className="text-gray-800">{new Date(selectedBooking.created_at || selectedBooking.date).toLocaleDateString('en-US', { 
-                      month: 'short', 
-                      day: 'numeric', 
-                      year: 'numeric' 
-                    })}</p>
-                  </div>
-                  {selectedBooking.google_event_id && (
-                    <div className="md:col-span-2 pt-3 border-t border-gray-200">
-                      <p className="text-gray-500 font-medium text-xs sm:text-sm mb-1">Calendar Event ID</p>
-                      <p className="text-gray-800 font-mono break-all text-xs sm:text-sm">{selectedBooking.google_event_id}</p>
+                <div className="space-y-4">
+                  {selectedBooking.custom_request && (
+                    <div className="bg-white rounded-lg p-4 border border-yellow-200 shadow-sm">
+                      <p className="text-xs sm:text-sm font-semibold text-gray-600 mb-2 uppercase tracking-wide">Request Details:</p>
+                      <p className="text-gray-800 whitespace-pre-wrap text-sm sm:text-base leading-relaxed">
+                        {selectedBooking.custom_request}
+                      </p>
+                    </div>
+                  )}
+                  {selectedBooking.custom_image && (
+                    <div className="bg-white rounded-lg p-4 border border-yellow-200 shadow-sm">
+                      <p className="text-xs sm:text-sm font-semibold text-gray-600 mb-3 uppercase tracking-wide">Attached Image:</p>
+                      <div className="flex justify-center">
+                        <img
+                          src={selectedBooking.custom_image}
+                          alt="Custom request reference"
+                          className="max-w-full max-h-96 rounded-lg border-2 border-yellow-200 bg-white p-2 shadow-md object-contain"
+                        />
+                      </div>
                     </div>
                   )}
                 </div>
               </div>
+            )}
 
-              {/* Action Buttons */}
-              {isEditingBookingDetails ? (
-                <div className="flex flex-col sm:flex-row gap-3 mt-6 pt-6 border-t border-gray-200">
-                  <button 
-                    onClick={async () => {
-                      try {
-                        if (!editingBookingForm.service_id || !editingBookingForm.date || !editingBookingForm.time || !editingBookingForm.price) {
-                          setError('Please fill in all required fields');
-                          return;
-                        }
-
-                        // Calculate total price including add-ons with quantities
-                        const basePrice = getNumericPrice(editingBookingForm.price || '0');
-                        const addonsTotal = editingBookingForm.addon_ids.reduce((sum, addonId) => {
+            {/* Pricing Summary */}
+            <div className="bg-gradient-to-br from-green-50 to-white rounded-xl p-4 sm:p-6 mb-6 border border-green-200/50 shadow-sm">
+              <h4 className="font-bold text-gray-800 mb-4 flex items-center gap-2 text-base sm:text-lg">
+                <svg className="w-5 h-5 text-green-600 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1" />
+                </svg>
+                Pricing Summary
+              </h4>
+              <div className="space-y-3 text-sm sm:text-base">
+                <div className="flex justify-between">
+                  <span className="text-gray-600">Service Price:</span>
+                  <span className="text-gray-800 font-medium">
+                    {isEditingBookingDetails
+                      ? formatCurrency(getNumericPrice(editingBookingForm.price || '0'))
+                      : formatCurrency(getNumericPrice(selectedBooking.price))
+                    }
+                  </span>
+                </div>
+                {(isEditingBookingDetails ? editingBookingForm.addon_ids.length > 0 : (selectedBooking.addons && selectedBooking.addons.length > 0)) && (
+                  <div className="flex justify-between">
+                    <span className="text-gray-600">Add-ons:</span>
+                    <span className="text-gray-800 font-medium">
+                      {isEditingBookingDetails
+                        ? formatCurrency(editingBookingForm.addon_ids.reduce((sum, addonId) => {
                           const addon = addOns.find(a => a.id === addonId);
                           if (!addon) return sum;
-                          const isIndividualNail = addon.name?.toLowerCase().includes('individual nail');
-                          const quantity = editingBookingForm.addonQuantities[addonId] || 1;
-                          
                           if (addon.name?.toLowerCase().includes('custom')) {
                             return sum + getNumericPrice(editingBookingForm.customAddonPrices[addonId] || '0');
                           }
-                          if (isIndividualNail) {
-                            return sum + (getNumericPrice(addon.price) * quantity);
-                          }
                           return sum + getNumericPrice(addon.price);
-                        }, 0);
-                        
-                        // For individual nails, we need to insert the addon multiple times (once per nail)
-                        // So we'll expand the addon_ids array to include duplicates
-                        const expandedAddonIds: string[] = [];
-                        editingBookingForm.addon_ids.forEach(addonId => {
-                          const addon = addOns.find(a => a.id === addonId);
-                          const isIndividualNail = addon?.name?.toLowerCase().includes('individual nail');
-                          const quantity = editingBookingForm.addonQuantities[addonId] || 1;
-                          
-                          if (isIndividualNail && quantity > 1) {
-                            // Insert the addon multiple times (once per nail)
-                            for (let i = 0; i < quantity; i++) {
-                              expandedAddonIds.push(addonId);
+                        }, 0))
+                        : formatCurrency(selectedBooking.addons.reduce((sum: number, addon: any) => sum + getNumericPrice(addon.price), 0))
+                      }
+                    </span>
+                  </div>
+                )}
+                <div className="border-t-2 border-gray-300 pt-3 mt-3">
+                  <div className="flex justify-between items-center">
+                    <span className="font-bold text-gray-800 text-base">Total Amount:</span>
+                    <span className="font-bold text-pink-accent text-xl">
+                      {isEditingBookingDetails
+                        ? formatCurrency(
+                          getNumericPrice(editingBookingForm.price || '0') +
+                          editingBookingForm.addon_ids.reduce((sum, addonId) => {
+                            const addon = addOns.find(a => a.id === addonId);
+                            if (!addon) return sum;
+                            const isIndividualNail = addon.name?.toLowerCase().includes('individual nail');
+                            const quantity = editingBookingForm.addonQuantities[addonId] || 1;
+
+                            if (addon.name?.toLowerCase().includes('custom')) {
+                              return sum + getNumericPrice(editingBookingForm.customAddonPrices[addonId] || '0');
                             }
-                          } else {
+                            if (isIndividualNail) {
+                              return sum + (getNumericPrice(addon.price) * quantity);
+                            }
+                            return sum + getNumericPrice(addon.price);
+                          }, 0)
+                        )
+                        : formatCurrency(
+                          getNumericPrice(selectedBooking.price) +
+                          (selectedBooking.addons?.reduce((sum: number, addon: any) => sum + getNumericPrice(addon.price), 0) || 0)
+                        )
+                      }
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Booking Metadata */}
+            <div className="bg-white/80 rounded-xl p-4 sm:p-5 border border-gray-200/50 shadow-sm">
+              <h4 className="font-bold text-gray-800 mb-4 flex items-center gap-2 text-base sm:text-lg">
+                <svg className="w-5 h-5 text-gray-600 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                </svg>
+                Booking Information
+              </h4>
+              <div className="grid md:grid-cols-2 gap-4 text-sm sm:text-base">
+                <div className="pb-3 border-b border-gray-100 md:border-b-0 md:border-r md:pr-4">
+                  <p className="text-gray-500 font-medium text-xs sm:text-sm mb-1">Booking Reference</p>
+                  <p className="text-gray-800 font-mono font-semibold text-base break-all">
+                    {selectedBooking.booking_reference || `ID: ${selectedBooking.id}`}
+                  </p>
+                </div>
+                <div className="pb-3 border-b border-gray-100 md:border-b-0 md:pl-4">
+                  <p className="text-gray-500 font-medium text-xs sm:text-sm mb-1">Status</p>
+                  <p className="text-gray-800">
+                    {new Date(selectedBooking.date) < new Date() ?
+                      <span className="inline-block text-gray-700 bg-gray-100 px-3 py-1.5 rounded-lg text-xs sm:text-sm font-medium">Completed</span> :
+                      <span className="inline-block text-green-700 bg-green-100 px-3 py-1.5 rounded-lg text-xs sm:text-sm font-medium">Upcoming</span>
+                    }
+                  </p>
+                </div>
+                <div className="pb-3 border-b border-gray-100 md:border-b-0 md:border-r md:pr-4">
+                  <p className="text-gray-500 font-medium text-xs sm:text-sm mb-1">Token</p>
+                  <p className="text-gray-800 font-mono break-all text-xs sm:text-sm">{selectedBooking.token}</p>
+                </div>
+                <div className="pb-3 border-b border-gray-100 md:border-b-0 md:pl-4">
+                  <p className="text-gray-500 font-medium text-xs sm:text-sm mb-1">Booking Created</p>
+                  <p className="text-gray-800">{new Date(selectedBooking.created_at || selectedBooking.date).toLocaleDateString('en-US', {
+                    month: 'short',
+                    day: 'numeric',
+                    year: 'numeric'
+                  })}</p>
+                </div>
+                {selectedBooking.google_event_id && (
+                  <div className="md:col-span-2 pt-3 border-t border-gray-200">
+                    <p className="text-gray-500 font-medium text-xs sm:text-sm mb-1">Calendar Event ID</p>
+                    <p className="text-gray-800 font-mono break-all text-xs sm:text-sm">{selectedBooking.google_event_id}</p>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Action Buttons */}
+            {isEditingBookingDetails ? (
+              <div className="flex flex-col sm:flex-row gap-3 mt-6 pt-6 border-t border-gray-200">
+                <button
+                  onClick={async () => {
+                    try {
+                      if (!editingBookingForm.service_id || !editingBookingForm.date || !editingBookingForm.time || !editingBookingForm.price) {
+                        setError('Please fill in all required fields');
+                        return;
+                      }
+
+                      // Calculate total price including add-ons with quantities
+                      const basePrice = getNumericPrice(editingBookingForm.price || '0');
+                      const addonsTotal = editingBookingForm.addon_ids.reduce((sum, addonId) => {
+                        const addon = addOns.find(a => a.id === addonId);
+                        if (!addon) return sum;
+                        const isIndividualNail = addon.name?.toLowerCase().includes('individual nail');
+                        const quantity = editingBookingForm.addonQuantities[addonId] || 1;
+
+                        if (addon.name?.toLowerCase().includes('custom')) {
+                          return sum + getNumericPrice(editingBookingForm.customAddonPrices[addonId] || '0');
+                        }
+                        if (isIndividualNail) {
+                          return sum + (getNumericPrice(addon.price) * quantity);
+                        }
+                        return sum + getNumericPrice(addon.price);
+                      }, 0);
+
+                      // For individual nails, we need to insert the addon multiple times (once per nail)
+                      // So we'll expand the addon_ids array to include duplicates
+                      const expandedAddonIds: string[] = [];
+                      editingBookingForm.addon_ids.forEach(addonId => {
+                        const addon = addOns.find(a => a.id === addonId);
+                        const isIndividualNail = addon?.name?.toLowerCase().includes('individual nail');
+                        const quantity = editingBookingForm.addonQuantities[addonId] || 1;
+
+                        if (isIndividualNail && quantity > 1) {
+                          // Insert the addon multiple times (once per nail)
+                          for (let i = 0; i < quantity; i++) {
                             expandedAddonIds.push(addonId);
                           }
-                        });
-                        
-                        // Prepare update data
-                        const updateData: any = {
-                          service_id: editingBookingForm.service_id,
-                          date: editingBookingForm.date,
-                          time: editingBookingForm.time,
-                          price: basePrice + addonsTotal,
-                          addon_ids: expandedAddonIds
-                        };
-
-                        // Update booking
-                        const updatedBooking = await api.put(`/api/bookings/${selectedBooking.id}`, updateData);
-                        
-                        // Update selectedBooking with the response
-                        setSelectedBooking(updatedBooking);
-                        setIsEditingBookingDetails(false);
-                        
-                        // Refresh bookings list
-                        const bookingsData = await api.get('/api/bookings');
-                        setBookings(bookingsData);
-                        
-                        setError('');
-                        setShowSuccess('Booking updated successfully!');
-                        setTimeout(() => setShowSuccess(null), 2000);
-                      } catch (err: any) {
-                        if (import.meta.env.DEV) console.error('Error updating booking:', err);
-                        setError(err.message || 'Failed to update booking');
-                      }
-                    }}
-                    className="flex-1 bg-pink-accent text-white px-6 py-3 rounded-xl font-medium hover:bg-pink-accent/90 active:scale-95 transition-all duration-200 flex items-center justify-center gap-2 touch-manipulation shadow-md"
-                  >
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                    </svg>
-                    Save Changes
-                  </button>
-                  <button 
-                    onClick={() => {
-                      setIsEditingBookingDetails(false);
-                      setEditingBookingForm({
-                        service_id: '',
-                        date: '',
-                        time: '',
-                        price: '',
-                        addon_ids: [],
-                        customAddonPrices: {},
-                        addonQuantities: {}
+                        } else {
+                          expandedAddonIds.push(addonId);
+                        }
                       });
-                    }}
-                    className="flex-1 bg-gray-200 text-gray-800 px-6 py-3 rounded-xl font-medium hover:bg-gray-300 active:scale-95 transition-all duration-200 flex items-center justify-center gap-2 touch-manipulation shadow-md"
-                  >
-                    Cancel
-                  </button>
-                </div>
-              ) : !showPastBookings && (
-                <div className="flex flex-col sm:flex-row gap-3 mt-6 pt-6 border-t border-gray-200">
-                  <button 
-                    onClick={() => {
-                      setShowBookingDetailsModal(false);
-                      openEditBookingModal(selectedBooking);
-                    }}
-                    className="flex-1 bg-baby-blue text-white px-6 py-3 rounded-xl font-medium hover:bg-baby-blue/80 active:scale-95 transition-all duration-200 flex items-center justify-center gap-2 touch-manipulation shadow-md"
-                  >
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                    </svg>
-                    Edit Booking
-                  </button>
-                  <button 
-                    onClick={() => {
-                      setShowBookingDetailsModal(false);
-                      onCancelBooking(selectedBooking.token);
-                    }}
-                    className="flex-1 bg-red-500 text-white px-6 py-3 rounded-xl font-medium hover:bg-red-600 active:scale-95 transition-all duration-200 flex items-center justify-center gap-2 touch-manipulation shadow-md"
-                  >
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                    </svg>
-                    Cancel Booking
-                  </button>
-                </div>
-              )}
+
+                      // Prepare update data
+                      const updateData: any = {
+                        service_id: editingBookingForm.service_id,
+                        date: editingBookingForm.date,
+                        time: editingBookingForm.time,
+                        price: basePrice + addonsTotal,
+                        addon_ids: expandedAddonIds
+                      };
+
+                      // Update booking
+                      const updatedBooking = await api.put(`/api/bookings/${selectedBooking.id}`, updateData);
+
+                      // Update selectedBooking with the response
+                      setSelectedBooking(updatedBooking);
+                      setIsEditingBookingDetails(false);
+
+                      // Refresh bookings list
+                      const bookingsData = await api.get('/api/bookings');
+                      setBookings(bookingsData);
+
+                      setError('');
+                      setShowSuccess('Booking updated successfully!');
+                      setTimeout(() => setShowSuccess(null), 2000);
+                    } catch (err: any) {
+                      if (import.meta.env.DEV) console.error('Error updating booking:', err);
+                      setError(err.message || 'Failed to update booking');
+                    }
+                  }}
+                  className="flex-1 bg-pink-accent text-white px-6 py-3 rounded-xl font-medium hover:bg-pink-accent/90 active:scale-95 transition-all duration-200 flex items-center justify-center gap-2 touch-manipulation shadow-md"
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                  </svg>
+                  Save Changes
+                </button>
+                <button
+                  onClick={() => {
+                    setIsEditingBookingDetails(false);
+                    setEditingBookingForm({
+                      service_id: '',
+                      date: '',
+                      time: '',
+                      price: '',
+                      addon_ids: [],
+                      customAddonPrices: {},
+                      addonQuantities: {}
+                    });
+                  }}
+                  className="flex-1 bg-gray-200 text-gray-800 px-6 py-3 rounded-xl font-medium hover:bg-gray-300 active:scale-95 transition-all duration-200 flex items-center justify-center gap-2 touch-manipulation shadow-md"
+                >
+                  Cancel
+                </button>
+              </div>
+            ) : !showPastBookings && (
+              <div className="flex flex-col sm:flex-row gap-3 mt-6 pt-6 border-t border-gray-200">
+                <button
+                  onClick={() => {
+                    setShowBookingDetailsModal(false);
+                    openEditBookingModal(selectedBooking);
+                  }}
+                  className="flex-1 bg-baby-blue text-white px-6 py-3 rounded-xl font-medium hover:bg-baby-blue/80 active:scale-95 transition-all duration-200 flex items-center justify-center gap-2 touch-manipulation shadow-md"
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                  </svg>
+                  Edit Booking
+                </button>
+                <button
+                  onClick={() => {
+                    setShowBookingDetailsModal(false);
+                    onCancelBooking(selectedBooking.token);
+                  }}
+                  className="flex-1 bg-red-500 text-white px-6 py-3 rounded-xl font-medium hover:bg-red-600 active:scale-95 transition-all duration-200 flex items-center justify-center gap-2 touch-manipulation shadow-md"
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                  </svg>
+                  Cancel Booking
+                </button>
+              </div>
+            )}
           </div>
         </Modal>
       )}
