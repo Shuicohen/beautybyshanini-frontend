@@ -194,29 +194,23 @@ const Booking = () => {
             setDatesCache(prev => ({ ...prev, [selectedService.id]: dates }));
           })
           .catch((err: any) => {
-            if (import.meta.env.DEV) console.error('Error fetching available dates:', err);
+            console.error('❌ Error fetching available dates:', err);
+            setAvailableDates([]);
+            // Show alert in prod for critical visibility
+            if (!import.meta.env.DEV) {
+              // Optionally set an error state here if needed
+            }
+
             // If service not found, reload services list and clear selection
             if (err?.message?.includes('Service not found') || err?.error === 'Service not found') {
               if (import.meta.env.DEV) console.log('Service not found, reloading services...');
               api.get(`/api/services/main?language=${language}`).then((mainServicesData: Service[]) => {
                 setServices(mainServicesData);
-                // Clear selection if current service doesn't exist anymore
                 const serviceExists = mainServicesData.some(s => s.id === selectedService.id);
                 if (!serviceExists) {
                   setSelectedService(null);
                   setStep(1);
                 }
-              }).catch(() => {
-                // Fallback to full services list
-                api.get(`/api/services?language=${language}`).then((allServices: Service[]) => {
-                  const mainServices = allServices.filter(s => !s.is_addon);
-                  setServices(mainServices);
-                  const serviceExists = mainServices.some(s => s.id === selectedService.id);
-                  if (!serviceExists) {
-                    setSelectedService(null);
-                    setStep(1);
-                  }
-                });
               });
             }
           })
@@ -428,8 +422,8 @@ END:VCALENDAR`;
                       key={s.id}
                       onClick={() => { setSelectedService(s); setStep(2); }}
                       className={`${cardColors[idx % cardColors.length]} relative p-4 sm:p-5 md:p-6 rounded-xl sm:rounded-2xl shadow-md border-2 text-center transition-shadow duration-200 active:shadow-lg active:scale-[0.98] group min-h-[120px] sm:min-h-[140px] flex flex-col items-center justify-between overflow-hidden touch-manipulation ${isSelected
-                          ? 'border-pink-accent bg-pink-accent/20 shadow-lg ring-2 ring-pink-accent/30'
-                          : 'border-white/60'
+                        ? 'border-pink-accent bg-pink-accent/20 shadow-lg ring-2 ring-pink-accent/30'
+                        : 'border-white/60'
                         }`}
                     >
                       <div className="absolute inset-0 pointer-events-none rounded-2xl" style={{ background: 'linear-gradient(120deg,rgba(255,255,255,0.10) 0%,rgba(255,255,255,0.22) 100%)' }}></div>
@@ -500,8 +494,8 @@ END:VCALENDAR`;
                             }
                           }}
                           className={`relative p-3 sm:p-4 rounded-xl border-2 cursor-pointer transition-shadow duration-200 active:scale-[0.98] text-left touch-manipulation ${isSelected
-                              ? 'border-pink-accent bg-pink-accent/15 shadow-md ring-2 ring-pink-accent/20'
-                              : 'border-gray-200 bg-white'
+                            ? 'border-pink-accent bg-pink-accent/15 shadow-md ring-2 ring-pink-accent/20'
+                            : 'border-gray-200 bg-white'
                             }`}
                           dir={language === 'he' ? 'rtl' : 'ltr'}
                         >
@@ -874,8 +868,8 @@ END:VCALENDAR`;
                   onClick={confirmBooking}
                   disabled={isBookingLoading || bookingCompleted}
                   className={`w-full py-3.5 sm:py-4 rounded-xl shadow-md transition-all duration-200 font-semibold text-base sm:text-lg flex items-center justify-center touch-manipulation ${isBookingLoading || bookingCompleted
-                      ? 'bg-gray-400 cursor-not-allowed'
-                      : 'bg-pink-accent hover:shadow-lg hover:bg-pink-accent/90 active:scale-[0.98]'
+                    ? 'bg-gray-400 cursor-not-allowed'
+                    : 'bg-pink-accent hover:shadow-lg hover:bg-pink-accent/90 active:scale-[0.98]'
                     } text-white`}
                 >
                   {isBookingLoading ? (
