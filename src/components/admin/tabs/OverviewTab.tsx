@@ -20,11 +20,11 @@ export const OverviewTab = ({ bookings, mainServices, addOns, analytics, onTabCh
           <p className="text-sm sm:text-base text-gray-600 mt-1">Today's summary and key metrics</p>
         </div>
         <div className="text-xs sm:text-sm text-gray-500 break-words">
-          {new Date().toLocaleDateString('en-US', { 
-            weekday: 'short', 
-            year: 'numeric', 
-            month: 'short', 
-            day: 'numeric' 
+          {new Date().toLocaleDateString('en-US', {
+            weekday: 'short',
+            year: 'numeric',
+            month: 'short',
+            day: 'numeric'
           })}
         </div>
       </div>
@@ -32,7 +32,7 @@ export const OverviewTab = ({ bookings, mainServices, addOns, analytics, onTabCh
       {/* Key Metrics Grid */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 lg:gap-6">
         <motion.button
-          initial={{ opacity: 0, y: 20 }}
+          initial={{ opacity: 0, y: 0 }}
           animate={{ opacity: 1, y: 0 }}
           whileHover={{ y: -4, scale: 1.02 }}
           className="bg-gradient-to-br from-pink-50 to-pink-100 p-3 sm:p-6 rounded-xl sm:rounded-2xl shadow-soft text-left hover:shadow-xl transition-all duration-300 cursor-pointer border border-pink-200 text-sm sm:text-base"
@@ -55,7 +55,7 @@ export const OverviewTab = ({ bookings, mainServices, addOns, analytics, onTabCh
         </motion.button>
 
         <motion.div
-          initial={{ opacity: 0, y: 20 }}
+          initial={{ opacity: 0, y: 0 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.1 }}
           className="bg-gradient-to-br from-green-50 to-green-100 p-3 sm:p-6 rounded-xl sm:rounded-2xl shadow-soft border border-green-200 text-sm sm:text-base"
@@ -78,7 +78,7 @@ export const OverviewTab = ({ bookings, mainServices, addOns, analytics, onTabCh
         </motion.div>
 
         <motion.button
-          initial={{ opacity: 0, y: 20 }}
+          initial={{ opacity: 0, y: 0 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.2 }}
           className="bg-gradient-to-br from-blue-50 to-blue-100 p-3 sm:p-6 rounded-xl sm:rounded-2xl shadow-soft text-left hover:shadow-xl transition-all duration-300 cursor-pointer border border-blue-200 text-sm sm:text-base"
@@ -101,7 +101,7 @@ export const OverviewTab = ({ bookings, mainServices, addOns, analytics, onTabCh
         </motion.button>
 
         <motion.button
-          initial={{ opacity: 0, y: 20 }}
+          initial={{ opacity: 0, y: 0 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.3 }}
           className="bg-gradient-to-br from-purple-50 to-purple-100 p-3 sm:p-6 rounded-xl sm:rounded-2xl shadow-soft text-left hover:shadow-xl transition-all duration-300 cursor-pointer border border-purple-200 text-sm sm:text-base"
@@ -142,7 +142,7 @@ export const OverviewTab = ({ bookings, mainServices, addOns, analytics, onTabCh
               })()} today
             </span>
           </div>
-          
+
           <div className="space-y-3">
             {(() => {
               const today = new Date().toDateString();
@@ -150,7 +150,7 @@ export const OverviewTab = ({ bookings, mainServices, addOns, analytics, onTabCh
                 .filter(b => new Date(b.date).toDateString() === today)
                 .sort((a, b) => a.time.localeCompare(b.time))
                 .slice(0, 5);
-              
+
               if (todaysBookings.length === 0) {
                 return (
                   <div className="text-center py-8 text-gray-500">
@@ -162,7 +162,7 @@ export const OverviewTab = ({ bookings, mainServices, addOns, analytics, onTabCh
                   </div>
                 );
               }
-              
+
               return todaysBookings.map((booking) => (
                 <div key={booking.id} className="flex items-center gap-4 p-3 bg-orange-50 rounded-xl border border-orange-200">
                   <div className="bg-orange-100 text-orange-600 px-3 py-1 rounded-lg font-semibold text-sm">
@@ -178,14 +178,14 @@ export const OverviewTab = ({ bookings, mainServices, addOns, analytics, onTabCh
                 </div>
               ));
             })()}
-            
+
             {(() => {
               const today = new Date().toDateString();
               const todaysBookings = bookings.filter(b => new Date(b.date).toDateString() === today);
               if (todaysBookings.length > 5) {
                 return (
                   <div className="text-center pt-3">
-                    <button 
+                    <button
                       onClick={() => onTabChange('Bookings')}
                       className="text-orange-600 hover:text-orange-700 font-medium text-sm"
                     >
@@ -206,13 +206,13 @@ export const OverviewTab = ({ bookings, mainServices, addOns, analytics, onTabCh
             </svg>
             Quick Stats
           </h3>
-          
+
           <div className="space-y-4">
             <div className="flex items-center justify-between p-3 bg-pink-50 rounded-xl">
               <span className="text-gray-700 font-medium">Most Booked Service</span>
               <span className="font-bold text-pink-accent">{analytics.mostBooked || 'No data yet'}</span>
             </div>
-            
+
             <div className="flex items-center justify-between p-3 bg-blue-50 rounded-xl">
               <span className="text-gray-700 font-medium">This Week</span>
               <span className="font-bold text-baby-blue">
@@ -221,7 +221,7 @@ export const OverviewTab = ({ bookings, mainServices, addOns, analytics, onTabCh
                   startOfWeek.setDate(startOfWeek.getDate() - startOfWeek.getDay());
                   const endOfWeek = new Date(startOfWeek);
                   endOfWeek.setDate(startOfWeek.getDate() + 6);
-                  
+
                   return bookings.filter(b => {
                     const bookingDate = new Date(b.date);
                     return bookingDate >= startOfWeek && bookingDate <= endOfWeek;
@@ -229,7 +229,7 @@ export const OverviewTab = ({ bookings, mainServices, addOns, analytics, onTabCh
                 })()} appointments
               </span>
             </div>
-            
+
             <div className="flex items-center justify-between p-3 bg-green-50 rounded-xl">
               <span className="text-gray-700 font-medium">This Month Revenue</span>
               <span className="font-bold text-green-600">
@@ -243,7 +243,7 @@ export const OverviewTab = ({ bookings, mainServices, addOns, analytics, onTabCh
                 })())}
               </span>
             </div>
-            
+
             <div className="flex items-center justify-between p-3 bg-purple-50 rounded-xl">
               <span className="text-gray-700 font-medium">Total Clients</span>
               <span className="font-bold text-purple-600">
@@ -277,7 +277,7 @@ export const OverviewTab = ({ bookings, mainServices, addOns, analytics, onTabCh
             </div>
             <span className="font-medium text-gray-800">View All Bookings</span>
           </button>
-          
+
           <button
             onClick={() => onTabChange('Manage Services')}
             className="bg-white/70 p-4 rounded-xl hover:bg-white/90 transition flex items-center gap-3 text-left"
@@ -289,7 +289,7 @@ export const OverviewTab = ({ bookings, mainServices, addOns, analytics, onTabCh
             </div>
             <span className="font-medium text-gray-800">Add New Service</span>
           </button>
-          
+
           <button
             onClick={() => onTabChange('Availability')}
             className="bg-white/70 p-4 rounded-xl hover:bg-white/90 transition flex items-center gap-3 text-left"
@@ -301,7 +301,7 @@ export const OverviewTab = ({ bookings, mainServices, addOns, analytics, onTabCh
             </div>
             <span className="font-medium text-gray-800">Set Availability</span>
           </button>
-          
+
           <button
             onClick={() => onTabChange('Analytics')}
             className="bg-white/70 p-4 rounded-xl hover:bg-white/90 transition flex items-center gap-3 text-left"

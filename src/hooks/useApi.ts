@@ -1,13 +1,15 @@
 import { useCallback } from 'react';
 
 // Use environment variable for API URL, fallback to localhost only in development
-// In production, VITE_API_URL must be set, otherwise throw an error
-const BASE_URL = import.meta.env.VITE_API_URL || (import.meta.env.DEV ? 'http://localhost:3000' : (() => {
-  if (import.meta.env.PROD) {
-    console.error('VITE_API_URL is not set in production environment');
+// When running locally in dev mode, prefer the local backend to avoid CORS issues with production backend
+const getBaseUrl = () => {
+  if (import.meta.env.DEV && window.location.hostname === 'localhost') {
+    return 'http://localhost:3000';
   }
-  return '';
-})());
+  return import.meta.env.VITE_API_URL || '';
+};
+
+const BASE_URL = getBaseUrl();
 
 export default function useApi(auth = false) {
   const getHeaders = () => ({
@@ -20,14 +22,14 @@ export default function useApi(auth = false) {
     if (!BASE_URL && import.meta.env.PROD) {
       throw new Error('API URL is not configured. Please contact the administrator.');
     }
-    
+
     const fullUrl = `${BASE_URL}${url}`;
-    
+
     // Log the request in development
     if (import.meta.env.DEV) {
       console.log(`API Request: ${options.method || 'GET'} ${fullUrl}`);
     }
-    
+
     for (let i = 0; i < retries; i++) {
       try {
         const controller = new AbortController();
@@ -38,7 +40,7 @@ export default function useApi(auth = false) {
         const response = await fetch(fullUrl, { ...options, signal: controller.signal });
         clearTimeout(timeoutId);
         const text = await response.text();
-        
+
         if (!response.ok) {
           let errorMsg = 'API error';
           try {
@@ -48,7 +50,7 @@ export default function useApi(auth = false) {
             // If JSON parsing fails, use the text or status text
             errorMsg = text || response.statusText || `HTTP ${response.status}`;
           }
-          
+
           // Log errors for debugging
           console.error(`API error for ${fullUrl}:`, {
             status: response.status,
@@ -56,7 +58,7 @@ export default function useApi(auth = false) {
             error: errorMsg,
             responseText: text
           });
-          
+
           if (response.status === 401) {
             // Don't redirect if we're already on the login page
             if (!window.location.pathname.includes('/admin/login')) {
@@ -93,12 +95,12 @@ export default function useApi(auth = false) {
           // Last retry, throw the error
           throw error;
         }
-        
+
         // Wait before retrying
         await new Promise(resolve => setTimeout(resolve, delay * (i + 1)));
       }
     }
-    
+
     // This should never be reached, but TypeScript needs it
     throw new Error('Unexpected error in fetchWithRetry');
   };
