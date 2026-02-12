@@ -6,6 +6,7 @@ export default {
       colors: {
         'soft-pink': '#FFF5F8',
         'pink-accent': '#FFB3C6',
+        'pink-deep': '#A0405C',
         'butter-yellow': '#FFF4B3',
         'baby-blue': '#B3E5FF',
         'text-dark': '#333333',

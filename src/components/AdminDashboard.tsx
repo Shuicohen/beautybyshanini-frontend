@@ -581,12 +581,12 @@ const AdminDashboard = () => {
     // Menu state handling
   }, [isMenuOpen, activeTab]);
 
-  if (loading) return <div className="flex justify-center items-center h-screen"><div className="animate-spin rounded-full h-12 w-12 border-t-4 border-pink-accent"></div></div>;
-  if (error) return <div className="flex justify-center items-center h-screen text-red-500">Error: {error}. <button onClick={() => window.location.reload()} className="ml-2 text-pink-accent underline">Retry</button></div>;
+  if (loading) return <div className="flex justify-center items-center min-h-[50vh]"><div className="animate-spin rounded-full h-12 w-12 border-t-4 border-pink-accent"></div></div>;
+  if (error) return <div className="flex justify-center items-center min-h-[50vh] text-red-500">Error: {error}. <button onClick={() => window.location.reload()} className="ml-2 text-pink-accent underline">Retry</button></div>;
 
   return (
     <div
-      className="relative min-h-[calc(100vh-64px)] flex flex-col md:flex-row"
+      className="relative min-h-[calc(100vh-52px)] sm:min-h-[calc(100vh-64px)] flex flex-col md:flex-row"
     >
       <AnimatedBackground />
       <Sidebar
@@ -598,7 +598,7 @@ const AdminDashboard = () => {
       />
       {/* Main content area */}
       <main
-        className="relative z-10 flex-1 p-2 sm:p-3 md:p-4 lg:p-6 xl:p-8 overflow-x-hidden overflow-y-auto w-full md:h-[calc(100vh-64px)] pt-0 md:pt-4"
+        className="relative z-10 flex-1 p-2 sm:p-3 md:p-4 lg:p-6 xl:p-8 overflow-x-hidden overflow-y-auto w-full md:h-[calc(100vh-64px)] pt-12 md:pt-4"
       >
         <motion.div
           key={activeTab}

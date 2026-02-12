@@ -18,7 +18,7 @@ const Gallery = () => {
   return (
     <section className="py-12 sm:py-16 md:py-20 px-4 bg-butter-yellow/20">
       <div className="max-w-7xl mx-auto">
-        <h2 className="text-3xl sm:text-4xl font-bold text-center mb-8 sm:mb-12 md:mb-16 text-pink-accent px-2">{t('ourRecentWork')}</h2>
+        <h2 className="text-3xl sm:text-4xl font-bold text-center mb-8 sm:mb-12 md:mb-16 text-pink-deep px-2">{t('ourRecentWork')}</h2>
         
         {/* Grid Layout - Better for Instagram embeds */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-5 md:gap-6">
@@ -66,13 +66,13 @@ const Gallery = () => {
           ))}
         </div>
       </div>
-      
+
       {/* Modal for viewing full post */}
       <Modal isOpen={!!selectedPost} onClose={() => setSelectedPost(null)}>
         <div className="w-full max-w-2xl mx-auto">
           <div className="flex items-center justify-between mb-4">
             <h3 className="text-xl sm:text-2xl font-bold text-gray-800">Instagram Post</h3>
-            <button 
+            <button
               onClick={() => setSelectedPost(null)}
               className="text-gray-500 hover:text-gray-700 active:opacity-70 transition-opacity duration-200 p-2 rounded-lg hover:bg-gray-100 touch-manipulation"
               aria-label="Close modal"
@@ -96,9 +96,9 @@ const Gallery = () => {
           </div>
           {selectedPost && (
             <div className="mt-4 text-center">
-              <a 
-                href={selectedPost} 
-                target="_blank" 
+              <a
+                href={selectedPost}
+                target="_blank"
                 rel="noopener noreferrer"
                 className="inline-block bg-pink-accent hover:bg-pink-accent/90 active:scale-95 text-white px-6 py-3 rounded-xl font-semibold transition-all duration-200 shadow-md hover:shadow-lg touch-manipulation"
               >

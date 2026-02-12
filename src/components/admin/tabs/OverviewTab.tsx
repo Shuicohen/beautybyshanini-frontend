@@ -11,6 +11,8 @@ interface OverviewTabProps {
 }
 
 export const OverviewTab = ({ bookings, mainServices, addOns, analytics, onTabChange }: OverviewTabProps) => {
+  const activeBookings = bookings.filter(b => b.status !== 'cancelled');
+
   return (
     <div className="space-y-6 sm:space-y-8">
       {/* Header */}
@@ -50,7 +52,7 @@ export const OverviewTab = ({ bookings, mainServices, addOns, analytics, onTabCh
             </svg>
           </div>
           <h3 className="text-lg font-bold text-gray-800 mb-1">Upcoming Appointments</h3>
-          <p className="text-3xl font-bold text-pink-accent">{bookings.filter(b => new Date(b.date) >= new Date()).length}</p>
+          <p className="text-3xl font-bold text-pink-accent">{activeBookings.filter(b => new Date(b.date) >= new Date()).length}</p>
           <p className="text-sm text-gray-600 mt-1">appointments scheduled</p>
         </motion.button>
 
@@ -72,7 +74,7 @@ export const OverviewTab = ({ bookings, mainServices, addOns, analytics, onTabCh
           </div>
           <h3 className="text-lg font-bold text-gray-800 mb-1">Total Revenue</h3>
           <p className="text-3xl font-bold text-green-600">
-            {formatCurrency(bookings.reduce((sum, b) => sum + (Number(b.price) || 0), 0))}
+            {formatCurrency(activeBookings.reduce((sum, b) => sum + (Number(b.price) || 0), 0))}
           </p>
           <p className="text-sm text-gray-600 mt-1">from all bookings</p>
         </motion.div>
@@ -138,7 +140,7 @@ export const OverviewTab = ({ bookings, mainServices, addOns, analytics, onTabCh
             <span className="bg-orange-100 text-orange-700 px-3 py-1 rounded-full text-sm font-medium">
               {(() => {
                 const today = new Date().toDateString();
-                return bookings.filter(b => new Date(b.date).toDateString() === today).length;
+                return activeBookings.filter(b => new Date(b.date).toDateString() === today).length;
               })()} today
             </span>
           </div>
@@ -146,7 +148,7 @@ export const OverviewTab = ({ bookings, mainServices, addOns, analytics, onTabCh
           <div className="space-y-3">
             {(() => {
               const today = new Date().toDateString();
-              const todaysBookings = bookings
+              const todaysBookings = activeBookings
                 .filter(b => new Date(b.date).toDateString() === today)
                 .sort((a, b) => a.time.localeCompare(b.time))
                 .slice(0, 5);
@@ -181,7 +183,7 @@ export const OverviewTab = ({ bookings, mainServices, addOns, analytics, onTabCh
 
             {(() => {
               const today = new Date().toDateString();
-              const todaysBookings = bookings.filter(b => new Date(b.date).toDateString() === today);
+              const todaysBookings = activeBookings.filter(b => new Date(b.date).toDateString() === today);
               if (todaysBookings.length > 5) {
                 return (
                   <div className="text-center pt-3">
@@ -222,7 +224,7 @@ export const OverviewTab = ({ bookings, mainServices, addOns, analytics, onTabCh
                   const endOfWeek = new Date(startOfWeek);
                   endOfWeek.setDate(startOfWeek.getDate() + 6);
 
-                  return bookings.filter(b => {
+                  return activeBookings.filter(b => {
                     const bookingDate = new Date(b.date);
                     return bookingDate >= startOfWeek && bookingDate <= endOfWeek;
                   }).length;
@@ -236,7 +238,7 @@ export const OverviewTab = ({ bookings, mainServices, addOns, analytics, onTabCh
                 {formatCurrency((() => {
                   const startOfMonth = new Date();
                   startOfMonth.setDate(1);
-                  const monthRevenue = bookings
+                  const monthRevenue = activeBookings
                     .filter(b => new Date(b.date) >= startOfMonth)
                     .reduce((sum, b) => sum + (Number(b.price) || 0), 0);
                   return isNaN(monthRevenue) ? 0 : Math.round(monthRevenue);
@@ -248,7 +250,7 @@ export const OverviewTab = ({ bookings, mainServices, addOns, analytics, onTabCh
               <span className="text-gray-700 font-medium">Total Clients</span>
               <span className="font-bold text-purple-600">
                 {(() => {
-                  const uniqueClients = new Set(bookings.map(b => b.client_email));
+                  const uniqueClients = new Set(activeBookings.map(b => b.client_email));
                   return uniqueClients.size;
                 })()}
               </span>

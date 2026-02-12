@@ -93,7 +93,9 @@ export const useAdminData = ({ isLoggedIn, token, activeTab, analyticsTimeRange 
           setMainServices(allServices.filter((s: Service) => !s.is_addon));
           setAddOns(allServices.filter((s: Service) => s.is_addon));
 
-          const totalRevenue = (bookingsData || []).reduce((sum: number, b: any) => sum + (Number(b.price) || 0), 0);
+          const totalRevenue = (bookingsData || [])
+            .filter((b: any) => b.status !== 'cancelled')
+            .reduce((sum: number, b: any) => sum + (Number(b.price) || 0), 0);
 
           setAnalytics((prevAnalytics) => ({
             ...prevAnalytics,

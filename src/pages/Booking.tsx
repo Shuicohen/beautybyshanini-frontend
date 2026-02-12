@@ -58,29 +58,28 @@ const Booking = () => {
   const [datesCache, setDatesCache] = useState<{ [serviceId: string]: Date[] }>({});
   const [loadingDates, setLoadingDates] = useState(false);
   const [step, setStep] = useState<Step>(1);
+  const [loadingServices, setLoadingServices] = useState(true);
   const [services, setServices] = useState<Service[]>([]);
   const [addOns, setAddOns] = useState<Service[]>([]);
   const [selectedService, setSelectedService] = useState<Service | null>(null);
   const [selectedAddOns, setSelectedAddOns] = useState<Service[]>([]);
   const [customRequest, setCustomRequest] = useState<string>('');
   const [customImage, setCustomImage] = useState<string | null>(null);
-  const [isCustomSelected, setIsCustomSelected] = useState<boolean>(false);
-  // ...existing code...
   const { t, language, setLanguage } = useLanguage();
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   // Track calendar's active month/year
   const [calendarDate, setCalendarDate] = useState<Date>(new Date());
   const [availableTimes, setAvailableTimes] = useState<string[]>([]);
   const [availableDates, setAvailableDates] = useState<Date[]>([]);
-  useEffect(() => {
-    // Available dates updated
-  }, [availableDates]);
   const [selectedTime, setSelectedTime] = useState<string>('');
   const [formData, setFormData] = useState<FormData | null>(null);
   const [showSuccess, setShowSuccess] = useState(false);
   const [isBookingLoading, setIsBookingLoading] = useState(false);
   const [bookingCompleted, setBookingCompleted] = useState(false);
   const api = useApi();
+  const isCustomSelected = selectedAddOns.some(a =>
+    a.name?.toLowerCase().includes('custom') || (a as any).name_en?.toLowerCase().includes('custom')
+  );
   const { register, handleSubmit, formState: { errors }, setValue } = useForm<FormData>();
   const [searchParams] = useSearchParams();
   const [isReschedule, setIsReschedule] = useState(false);
@@ -93,7 +92,6 @@ const Booking = () => {
     const name = searchParams.get('name');
     const email = searchParams.get('email');
     const phone = searchParams.get('phone');
-    const serviceId = searchParams.get('service');
     const urlLanguage = searchParams.get('lang');
 
     // Set language from URL parameter if provided
@@ -110,41 +108,31 @@ const Booking = () => {
       if (email) setValue('email', decodeURIComponent(email));
       if (phone) setValue('phone', decodeURIComponent(phone));
 
-      // Pre-select service for reschedule
-      if (serviceId && services.length > 0) {
-        const service = services.find(s => s.id === serviceId);
-        if (service) {
-          setSelectedService(service);
-          setStep(3); // Skip to date selection for reschedule
-        }
-      }
-    } else if (serviceId && services.length > 0) {
-      // Pre-select service from homepage click (not reschedule)
-      const service = services.find(s => s.id === serviceId);
-      if (service) {
-        setSelectedService(service);
-        setStep(2); // Go to add-ons selection step
-      }
+      // Service pre-selection for reschedule is handled in the services fetch useEffect below
     }
-  }, [searchParams, services, setValue]);
+    // Service pre-selection from homepage is handled in the services fetch useEffect below
+  }, [searchParams, setValue]);
   useEffect(() => {
     // Fetch main services and add-ons separately with language parameter
+    setLoadingServices(true);
     Promise.all([
       api.get(`/api/services/main?language=${language}`),
       api.get(`/api/services/addons?language=${language}`)
     ]).then(([mainServicesData, addOnsData]: [Service[], Service[]]) => {
       setServices(mainServicesData);
       setAddOns(addOnsData);
+      setLoadingServices(false);
 
-      // Check if there's a service ID in URL and auto-select it (from homepage click)
+      // Auto-select service from URL params (homepage click or reschedule)
       const serviceId = searchParams.get('service');
       const reschedule = searchParams.get('reschedule');
-      if (serviceId && !reschedule && mainServicesData.length > 0) {
+      if (serviceId && mainServicesData.length > 0) {
         const service = mainServicesData.find(s => s.id === serviceId);
         if (service && (!selectedService || selectedService.id !== serviceId)) {
           setSelectedService(service);
-          // Only advance to step 2 if we're still on step 1 (initial load from homepage)
-          if (step === 1) {
+          if (reschedule === 'true') {
+            setStep(3); // Skip to date selection for reschedule
+          } else if (step === 1) {
             setStep(2); // Go to add-ons selection step
           }
         }
@@ -158,21 +146,23 @@ const Booking = () => {
         setServices(mainServices);
         setAddOns(addOnServices);
 
-        // Check if there's a service ID in URL and auto-select it (from homepage click)
+        // Auto-select service from URL params (homepage click or reschedule)
         const serviceId = searchParams.get('service');
         const reschedule = searchParams.get('reschedule');
-        if (serviceId && !reschedule && mainServices.length > 0) {
+        if (serviceId && mainServices.length > 0) {
           const service = mainServices.find(s => s.id === serviceId);
           if (service && (!selectedService || selectedService.id !== serviceId)) {
             setSelectedService(service);
-            if (step === 1) {
+            if (reschedule === 'true') {
+              setStep(3);
+            } else if (step === 1) {
               setStep(2);
             }
           }
         }
       }).catch((fallbackError) => {
         if (import.meta.env.DEV) console.error('Error fetching services from fallback endpoint:', fallbackError);
-      });
+      }).finally(() => setLoadingServices(false));
     });
   }, [api, language, searchParams]);
   useEffect(() => {
@@ -267,7 +257,7 @@ const Booking = () => {
       try {
         // If this is a reschedule, cancel the old booking first
         if (isReschedule && rescheduleToken) {
-          await api.get(`/api/bookings/manage?token=${rescheduleToken}&action=cancel`);
+          await api.post('/api/bookings/manage', { token: rescheduleToken, action: 'cancel' });
         }
 
         // Create new booking
@@ -314,7 +304,7 @@ const Booking = () => {
     const startTimeForCal = `${pad(hours)}${pad(minutes)}00`;
     const endHours = hours + Math.floor(totalDuration / 60);
     const endMinutes = minutes + (totalDuration % 60);
-    const finalHours = endHours + Math.floor(endMinutes / 60);
+    const finalHours = (endHours + Math.floor(endMinutes / 60)) % 24;
     const finalMinutes = endMinutes % 60;
     const endTimeForCal = `${pad(finalHours)}${pad(finalMinutes)}00`;
 
@@ -332,7 +322,8 @@ Price: ₪${totalPrice.toFixed(2)}
 Beauty by Shanini Appointment`;
 
     // Google Calendar URL
-    const googleUrl = `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${encodeURIComponent(eventTitle)}&dates=${dateForCal}T${startTimeForCal}Z/${dateForCal}T${endTimeForCal}Z&details=${encodeURIComponent(calendarDescription)}&location=${encodeURIComponent('Beauty by Shanini')}`;
+    // Use local times without Z suffix — Google Calendar interprets them as the user's local time
+    const googleUrl = `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${encodeURIComponent(eventTitle)}&dates=${dateForCal}T${startTimeForCal}/${dateForCal}T${endTimeForCal}&details=${encodeURIComponent(calendarDescription)}&location=${encodeURIComponent('Beauty by Shanini')}&ctz=Asia/Jerusalem`;
 
     // Apple Calendar (ICS file)
     const icsDescription = calendarDescription.replace(/\n/g, '\\n');
@@ -341,8 +332,8 @@ VERSION:2.0
 PRODID:-//Beauty by Shanini//EN
 BEGIN:VEVENT
 UID:${Date.now()}@beautybyshanini.com
-DTSTART:${dateForCal}T${startTimeForCal}Z
-DTEND:${dateForCal}T${endTimeForCal}Z
+DTSTART;TZID=Asia/Jerusalem:${dateForCal}T${startTimeForCal}
+DTEND;TZID=Asia/Jerusalem:${dateForCal}T${endTimeForCal}
 SUMMARY:${eventTitle}
 DESCRIPTION:${icsDescription}
 LOCATION:Beauty by Shanini
@@ -404,6 +395,12 @@ END:VCALENDAR`;
           {step === 1 && (
             <div>
               <h2 className="text-2xl sm:text-3xl font-bold mb-6 sm:mb-8 text-center text-text-dark px-2">{t('selectService')}</h2>
+              {loadingServices ? (
+                <div className="flex flex-col items-center justify-center py-16">
+                  <div className="animate-spin rounded-full h-14 w-14 border-t-4 border-b-4 border-pink-accent mb-4"></div>
+                  <span className="text-pink-accent font-semibold text-lg">{t('loadingServices')}</span>
+                </div>
+              ) : (
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 md:gap-6">
                 {services.filter(s => !s.is_addon).map((s, idx) => {
                   const isSelected = selectedService?.id === s.id;
@@ -453,6 +450,7 @@ END:VCALENDAR`;
                   );
                 })}
               </div>
+              )}
             </div>
           )}
           {step === 2 && (
@@ -476,21 +474,14 @@ END:VCALENDAR`;
                           key={addon.id}
                           type="button"
                           onClick={() => {
-                            if (isCustom) {
-                              setIsCustomSelected(!isCustomSelected);
-                              if (!isCustomSelected) {
-                                setSelectedAddOns([...selectedAddOns, addon]);
-                              } else {
-                                setSelectedAddOns(selectedAddOns.filter(a => a.id !== addon.id));
+                            if (isSelected) {
+                              setSelectedAddOns(selectedAddOns.filter(a => a.id !== addon.id));
+                              if (isCustom) {
                                 setCustomRequest('');
                                 setCustomImage(null);
                               }
                             } else {
-                              if (isSelected) {
-                                setSelectedAddOns(selectedAddOns.filter(a => a.id !== addon.id));
-                              } else {
-                                setSelectedAddOns([...selectedAddOns, addon]);
-                              }
+                              setSelectedAddOns([...selectedAddOns, addon]);
                             }
                           }}
                           className={`relative p-3 sm:p-4 rounded-xl border-2 cursor-pointer transition-shadow duration-200 active:scale-[0.98] text-left touch-manipulation ${isSelected
@@ -782,10 +773,6 @@ END:VCALENDAR`;
                     pattern: {
                       value: /^[^\s@]+@[^\s@]+\.[^\s@]+$/,
                       message: language === 'he' ? 'כתובת אימייל לא תקינה' : 'Invalid email address'
-                    },
-                    validate: (value) => {
-                      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-                      return emailRegex.test(value) || (language === 'he' ? 'כתובת אימייל לא תקינה' : 'Invalid email address');
                     }
                   })}
                   type="email"
@@ -844,7 +831,7 @@ END:VCALENDAR`;
                 <p className="text-lg"><span className="font-bold">{t('time')}:</span> {selectedTime}</p>
                 <p className="text-lg"><span className="font-bold">{t('totalPrice')}:</span> ₪{
                   (() => {
-                    const servicePrice = Number(selectedService?.price || 0);
+                    const servicePrice = getNumericPrice(selectedService?.price || 0);
                     const addOnsPrice = selectedAddOns.reduce((total, addon) => total + getNumericPrice(addon.price || 0), 0);
                     return (servicePrice + addOnsPrice).toFixed(2);
                   })()

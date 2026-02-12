@@ -14,7 +14,7 @@ export const Sidebar = ({ activeTab, isMenuOpen, onTabChange, onMenuToggle, onLo
     <>
       {/* Mobile menu button - positioned tightly to header */}
       <button
-        className="md:hidden p-2 bg-white/95 backdrop-blur-md text-pink-accent fixed top-[68px] left-2 z-50 rounded-full shadow-lg border border-white/20"
+        className="md:hidden p-2 bg-white/95 backdrop-blur-md text-pink-accent fixed top-[56px] sm:top-[68px] left-2 z-50 rounded-full shadow-lg border border-white/20"
         onClick={onMenuToggle}
         aria-label="Open menu"
       >
@@ -32,8 +32,8 @@ export const Sidebar = ({ activeTab, isMenuOpen, onTabChange, onMenuToggle, onLo
       {/* Sidebar navigation */}
       <nav
         className={`
-          relative z-40 bg-white/95 backdrop-blur-md p-3 sm:p-4 md:p-6 shadow-soft flex flex-col
-          w-72 max-w-[80vw] h-screen fixed top-0 left-0 transition-transform duration-300 ease-in-out
+          fixed z-40 bg-white/95 backdrop-blur-md p-3 sm:p-4 md:p-6 shadow-soft flex flex-col
+          w-72 max-w-[80vw] h-screen top-0 left-0 transition-transform duration-300 ease-in-out
           md:sticky md:top-[64px] md:w-64 md:h-[calc(100vh-64px)] md:block md:translate-x-0
           ${isMenuOpen ? 'translate-x-0' : '-translate-x-full'}
           md:translate-x-0 border-r border-white/20 overflow-hidden

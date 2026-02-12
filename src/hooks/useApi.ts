@@ -1,4 +1,4 @@
-import { useCallback } from 'react';
+import { useCallback, useMemo } from 'react';
 
 // Use environment variable for API URL, fallback to localhost only in development
 // When running locally in dev mode, prefer the local backend to avoid CORS issues with production backend
@@ -132,5 +132,5 @@ export default function useApi(auth = false) {
     });
   }, [auth]);
 
-  return { get, post, put, del };
+  return useMemo(() => ({ get, post, put, del }), [get, post, put, del]);
 }
