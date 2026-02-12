@@ -17,10 +17,10 @@ export const BookingsTab = ({
   onBookingDetails
 }: BookingsTabProps) => {
   const [searchTerm, setSearchTerm] = useState<string>('');
-  const [showPastBookings, setShowPastBookings] = useState<boolean>(false);
+  const [bookingView, setBookingView] = useState<'upcoming' | 'past' | 'cancelled'>('upcoming');
   const [timeFilter, setTimeFilter] = useState<'today' | 'week' | 'month' | 'all'>('all');
 
-  // Filter bookings based on search term and past/upcoming toggle
+  // Filter bookings based on search term and view toggle
   const filteredBookings = useMemo(() => {
     return bookings.filter(booking => {
       // First filter by search term
@@ -35,26 +35,35 @@ export const BookingsTab = ({
         if (!matchesSearch) return false;
       }
 
-      // Then filter by past/upcoming
+      const isCancelled = booking.status === 'cancelled';
       const bookingDate = new Date(booking.date);
       const today = new Date();
       today.setHours(0, 0, 0, 0);
-      
-      if (showPastBookings) {
+
+      if (bookingView === 'cancelled') {
+        // Only show cancelled bookings
+        if (!isCancelled) return false;
+      } else if (bookingView === 'past') {
+        // Past non-cancelled bookings
+        if (isCancelled) return false;
         if (bookingDate >= today) return false;
       } else {
+        // Upcoming non-cancelled bookings
+        if (isCancelled) return false;
         if (bookingDate < today) return false;
       }
 
-      // Finally filter by time range
-      const dateRange = getDateRangeForFilter(timeFilter);
-      if (dateRange) {
-        return bookingDate >= dateRange.start && bookingDate < dateRange.end;
+      // Finally filter by time range (skip for cancelled view)
+      if (bookingView !== 'cancelled') {
+        const dateRange = getDateRangeForFilter(timeFilter);
+        if (dateRange) {
+          return bookingDate >= dateRange.start && bookingDate < dateRange.end;
+        }
       }
-      
+
       return true;
     });
-  }, [bookings, searchTerm, showPastBookings, timeFilter]);
+  }, [bookings, searchTerm, bookingView, timeFilter]);
 
   const renderBookingCard = (booking: Booking) => (
     <div 
@@ -87,7 +96,7 @@ export const BookingsTab = ({
           {timeFilter === 'today' && <p className="text-sm text-gray-500">{booking.client_phone}</p>}
           {timeFilter === 'all' && <p className="text-sm text-gray-500">{booking.client_email} • {booking.client_phone}</p>}
         </div>
-        {!showPastBookings && (
+        {bookingView === 'upcoming' && (
           <div className="flex gap-2 pt-2">
             <button 
               onClick={(e) => {
@@ -140,7 +149,7 @@ export const BookingsTab = ({
             <p className="font-bold text-pink-accent">{formatCurrency(Number(booking.price || 0))}</p>
             <p className="text-xs text-gray-500">ID: {(booking.booking_reference || String(booking.id))}</p>
           </div>
-          {!showPastBookings && (
+          {bookingView === 'upcoming' && (
             <div className="flex gap-2">
               <button 
                 onClick={(e) => {
@@ -264,8 +273,10 @@ export const BookingsTab = ({
     }
   };
 
-  const totalPastBookings = bookings.filter(b => new Date(b.date) < new Date()).length;
-  const totalUpcomingBookings = bookings.filter(b => new Date(b.date) >= new Date()).length;
+  const activeBookings = bookings.filter(b => b.status !== 'cancelled');
+  const totalPastBookings = activeBookings.filter(b => new Date(b.date) < new Date()).length;
+  const totalUpcomingBookings = activeBookings.filter(b => new Date(b.date) >= new Date()).length;
+  const totalCancelledBookings = bookings.filter(b => b.status === 'cancelled').length;
 
   return (
     <div>
@@ -273,10 +284,13 @@ export const BookingsTab = ({
         <div className="flex flex-col items-start">
           <h1 className="text-3xl font-bold text-pink-accent">Bookings</h1>
           <p className="text-gray-600 mt-1">
-            {searchTerm 
-              ? `${filteredBookings.length} of ${showPastBookings ? totalPastBookings : totalUpcomingBookings} ${showPastBookings ? 'past' : 'upcoming'} bookings`
-              : `${filteredBookings.length} ${showPastBookings ? 'past' : 'upcoming'} bookings`
-            }
+            {(() => {
+              const viewLabel = bookingView === 'cancelled' ? 'cancelled' : bookingView === 'past' ? 'past' : 'upcoming';
+              const viewTotal = bookingView === 'cancelled' ? totalCancelledBookings : bookingView === 'past' ? totalPastBookings : totalUpcomingBookings;
+              return searchTerm
+                ? `${filteredBookings.length} of ${viewTotal} ${viewLabel} bookings`
+                : `${filteredBookings.length} ${viewLabel} bookings`;
+            })()}
           </p>
         </div>
         <div className="relative w-full sm:w-auto">
@@ -309,28 +323,38 @@ export const BookingsTab = ({
         </div>
       </div>
       
-      {/* Toggle for Past/Upcoming Bookings */}
+      {/* Toggle for Upcoming/Past/Cancelled Bookings */}
       <div className="flex justify-center mb-4">
         <div className="bg-white/90 backdrop-blur-md rounded-full p-1 shadow-soft">
           <button
-            onClick={() => setShowPastBookings(false)}
-            className={`px-6 py-2 rounded-full font-semibold transition-all duration-300 ${
-              !showPastBookings 
-                ? 'bg-pink-accent text-white shadow-md' 
+            onClick={() => setBookingView('upcoming')}
+            className={`px-4 sm:px-6 py-2 rounded-full font-semibold transition-all duration-300 text-sm sm:text-base ${
+              bookingView === 'upcoming'
+                ? 'bg-pink-accent text-white shadow-md'
                 : 'text-gray-600 hover:text-pink-accent'
             }`}
           >
-            Upcoming Bookings
+            Upcoming
           </button>
           <button
-            onClick={() => setShowPastBookings(true)}
-            className={`px-6 py-2 rounded-full font-semibold transition-all duration-300 ${
-              showPastBookings 
-                ? 'bg-pink-accent text-white shadow-md' 
+            onClick={() => setBookingView('past')}
+            className={`px-4 sm:px-6 py-2 rounded-full font-semibold transition-all duration-300 text-sm sm:text-base ${
+              bookingView === 'past'
+                ? 'bg-pink-accent text-white shadow-md'
                 : 'text-gray-600 hover:text-pink-accent'
             }`}
           >
-            Past Bookings
+            Past
+          </button>
+          <button
+            onClick={() => setBookingView('cancelled')}
+            className={`px-4 sm:px-6 py-2 rounded-full font-semibold transition-all duration-300 text-sm sm:text-base ${
+              bookingView === 'cancelled'
+                ? 'bg-red-500 text-white shadow-md'
+                : 'text-gray-600 hover:text-red-500'
+            }`}
+          >
+            Cancelled{totalCancelledBookings > 0 ? ` (${totalCancelledBookings})` : ''}
           </button>
         </div>
       </div>
@@ -358,16 +382,22 @@ export const BookingsTab = ({
       
       <div className="space-y-6">
         {renderBookingsContent()}
-        {filteredBookings.length === 0 && (showPastBookings ? totalPastBookings : totalUpcomingBookings) > 0 && (
-          <div className="bg-baby-blue/10 p-8 rounded-2xl text-center text-lg text-gray-500 font-semibold">
-            No {showPastBookings ? 'past' : 'upcoming'} bookings match your search criteria for {timeFilter === 'today' ? 'today' : timeFilter === 'week' ? 'this week' : timeFilter === 'month' ? 'this month' : 'the selected period'}.
-          </div>
-        )}
-        {(showPastBookings ? totalPastBookings : totalUpcomingBookings) === 0 && (
-          <div className="bg-baby-blue/10 p-8 rounded-2xl text-center text-lg text-gray-500 font-semibold">
-            No {showPastBookings ? 'past' : 'upcoming'} bookings found.
-          </div>
-        )}
+        {filteredBookings.length === 0 && (() => {
+          const viewLabel = bookingView === 'cancelled' ? 'cancelled' : bookingView === 'past' ? 'past' : 'upcoming';
+          const viewTotal = bookingView === 'cancelled' ? totalCancelledBookings : bookingView === 'past' ? totalPastBookings : totalUpcomingBookings;
+          if (viewTotal > 0) {
+            return (
+              <div className="bg-baby-blue/10 p-8 rounded-2xl text-center text-lg text-gray-500 font-semibold">
+                No {viewLabel} bookings match your search criteria for {timeFilter === 'today' ? 'today' : timeFilter === 'week' ? 'this week' : timeFilter === 'month' ? 'this month' : 'the selected period'}.
+              </div>
+            );
+          }
+          return (
+            <div className="bg-baby-blue/10 p-8 rounded-2xl text-center text-lg text-gray-500 font-semibold">
+              No {viewLabel} bookings found.
+            </div>
+          );
+        })()}
       </div>
     </div>
   );

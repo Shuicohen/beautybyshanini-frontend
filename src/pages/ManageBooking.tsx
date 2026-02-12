@@ -1,8 +1,7 @@
 import React, { useState, useEffect } from 'react';
-// Use environment variable for API URL, fallback to localhost only in development
-const API_URL = import.meta.env.VITE_API_URL || (import.meta.env.DEV ? 'http://localhost:3000' : '');
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { useLanguage } from '../contexts/LanguageContext';
+import useApi from '../hooks/useApi';
 import AnimatedBackground from '../components/AnimatedBackground';
 
 interface Booking {
@@ -23,6 +22,7 @@ const ManageBooking: React.FC = () => {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const { t, setLanguage, language, isRTL } = useLanguage();
+  const api = useApi();
   const [booking, setBooking] = useState<Booking | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string>('');
@@ -48,20 +48,15 @@ const ManageBooking: React.FC = () => {
 
   const fetchBooking = async () => {
     try {
-      const response = await fetch(`${API_URL}/api/bookings/details/${token}`);
-      if (response.ok) {
-        const bookingData = await response.json();
-        setBooking(bookingData);
-        
-        // If no URL language was specified, use the booking's language
-        if (!urlLanguage && bookingData.language) {
-          setLanguage(bookingData.language);
-        }
-      } else {
-        setError(t('bookingNotFoundOrExpired'));
+      const bookingData = await api.get(`/api/bookings/details/${token}`);
+      setBooking(bookingData);
+
+      // If no URL language was specified, use the booking's language
+      if (!urlLanguage && bookingData.language) {
+        setLanguage(bookingData.language);
       }
     } catch (err) {
-      setError(t('failedToLoadBookingDetails'));
+      setError(t('bookingNotFoundOrExpired'));
     } finally {
       setLoading(false);
     }
@@ -72,16 +67,9 @@ const ManageBooking: React.FC = () => {
     
     setActionLoading('cancel');
     try {
-      const response = await fetch(`${API_URL}/api/bookings/manage?token=${token}&action=cancel`, {
-        method: 'GET',
-      });
-      
-      if (response.ok) {
-        alert(t('appointmentCancelledSuccess'));
-        navigate('/');
-      } else {
-        alert(t('cancelFailed'));
-      }
+      await api.post('/api/bookings/manage', { token, action: 'cancel' });
+      alert(t('appointmentCancelledSuccess'));
+      navigate('/');
     } catch (err) {
       alert(t('cancelFailed'));
     } finally {

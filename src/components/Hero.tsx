@@ -18,7 +18,7 @@ const Hero = () => {
             initial={shouldReduceMotion ? false : { opacity: 0 }}
             animate={{ opacity: 1 }}
             transition={shouldReduceMotion ? {} : { duration: 0.5 }}
-            className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-bold text-pink-accent mb-4 md:mb-6 leading-tight drop-shadow-sm"
+            className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-bold text-pink-deep mb-4 md:mb-6 leading-tight drop-shadow-sm"
           >
             {t('heroTitle')}
           </motion.h1>
